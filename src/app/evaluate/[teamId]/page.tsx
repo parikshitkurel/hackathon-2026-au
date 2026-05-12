@@ -4,15 +4,19 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ChevronLeft, Globe, ExternalLink, Users, AlertCircle, Save, CheckCircle } from "lucide-react";
+import { ChevronLeft, Globe, ExternalLink, Users, AlertCircle, Save, CheckCircle, Download } from "lucide-react";
 import { PageWrapper } from "@/components/layout/PageWrapper";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { mockTeams, Team } from "@/lib/mock-data";
+import { mockTeams, Team, mockScores } from "@/lib/mock-data";
 import { supabase, hasSupabaseConfig } from "@/lib/supabase";
+import { ScorecardPDF } from "@/components/brand/ScorecardPDF";
+import { generatePDF } from "@/lib/pdf-utils";
+import { useRef } from "react";
 
 const SCORING_CATEGORIES = [
   { id: "creativity_score", label: "Creativity & Originality", description: "Innovation, unique approach, and creative vision.", max: 20 },
@@ -22,19 +26,33 @@ const SCORING_CATEGORIES = [
   { id: "engagement_score", label: "Interactivity & Engagement", description: "User experience, performance, and interactivity.", max: 20 },
 ];
 
+const MAX_EDITS = 3;
+
 export default function EvaluatePage({ params }: { params: Promise<{ teamId: string }> }) {
   const router = useRouter();
   const [team, setTeam] = useState<Team | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [editCount, setEditCount] = useState(0);
+  const scorecardRef = useRef<HTMLDivElement>(null);
   
   // Unwrap params using React.use
   const resolvedParams = React.use(params);
   
   useEffect(() => {
     async function fetchTeam() {
+      const teamId = resolvedParams.teamId;
+      console.log("Attempting to fetch team with ID:", teamId);
+
       if (!hasSupabaseConfig) {
-        const found = mockTeams.find(t => t.id === resolvedParams.teamId);
-        if (found) setTeam(found);
+        // Normalize ID for finding in mock data
+        const normalizedId = teamId.replace(/\s/g, '-');
+        const found = mockTeams.find(t => t.id === normalizedId || t.id === teamId);
+        if (found) {
+          setTeam(found);
+        } else {
+          console.error("Team not found in mock data:", teamId);
+        }
         setLoading(false);
         return;
       }
@@ -43,16 +61,57 @@ export default function EvaluatePage({ params }: { params: Promise<{ teamId: str
         const { data, error } = await supabase
           .from('teams')
           .select('*')
-          .eq('id', resolvedParams.teamId)
+          .eq('id', teamId)
           .single();
 
-        if (error) throw error;
+        if (error) {
+          console.warn("Supabase fetch failed (possibly due to mock ID format), falling back to mock data.", error.message);
+          throw error;
+        }
+        
         setTeam(data as Team);
+
+        // Fetch existing score and edit count
+        const judgeData = localStorage.getItem("current_judge");
+        if (judgeData) {
+          const { id: judgeId } = JSON.parse(judgeData);
+          const { data: existingScore } = await supabase
+            .from('scores')
+            .select('*')
+            .eq('team_id', teamId)
+            .eq('judge_id', judgeId)
+            .single();
+          
+          if (existingScore) {
+            setScores({
+              creativity_score: existingScore.creativity_score,
+              technical_score: existingScore.technical_score,
+              design_score: existingScore.design_score,
+              theme_score: existingScore.theme_score,
+              engagement_score: existingScore.engagement_score,
+            });
+            setFeedback(existingScore.feedback || "");
+            setEditCount(existingScore.edit_count || 0);
+          }
+        }
       } catch (err) {
-        console.error("Error fetching team:", err);
-        // Fallback
-        const found = mockTeams.find(t => t.id === resolvedParams.teamId);
-        if (found) setTeam(found);
+        // Fallback to mock data
+        const normalizedId = teamId.replace(/\s/g, '-');
+        const mockTeam = mockTeams.find(t => 
+          t.id === teamId || 
+          t.id === normalizedId || 
+          t.team_name.toLowerCase().replace(/\s+/g, '-') === normalizedId.toLowerCase()
+        );
+
+        if (mockTeam) {
+          setTeam(mockTeam);
+          // Load mock edit count
+          const key = `edit_count_${mockTeam.id}`;
+          const savedEdits = parseInt(localStorage.getItem(key) || "0");
+          setEditCount(savedEdits);
+        } else {
+          console.error("Critical: Team not found in database or mock data for ID:", teamId);
+        }
       } finally {
         setLoading(false);
       }
@@ -87,22 +146,43 @@ export default function EvaluatePage({ params }: { params: Promise<{ teamId: str
     setScores(prev => ({ ...prev, [category]: value[0] }));
   };
 
+  const handleManualScoreChange = (category: string, value: string, max: number) => {
+    const num = parseInt(value);
+    if (isNaN(num)) {
+      setScores(prev => ({ ...prev, [category]: 0 }));
+      return;
+    }
+    const validatedNum = Math.min(Math.max(0, num), max);
+    setScores(prev => ({ ...prev, [category]: validatedNum }));
+  };
+
   const handleSubmit = async () => {
     setIsSubmitting(true);
     setErrorMsg("");
 
-    if (!hasSupabaseConfig) {
-      // Mock Submission
-      setTimeout(() => {
-        setIsSubmitting(false);
-        setShowConfirmModal(false);
-        router.push("/dashboard");
-      }, 1000);
+    // Validate score
+    if (totalScore === 0) {
+      setErrorMsg("You Can't Score 0");
+      setIsSubmitting(false);
       return;
     }
 
+    if (!hasSupabaseConfig || team.id.startsWith('t-')) {
+        // Mock Persistence for edit count
+        const key = `edit_count_${team.id}`;
+        const currentEdits = parseInt(localStorage.getItem(key) || "0");
+        localStorage.setItem(key, (currentEdits + 1).toString());
+        
+        setTimeout(() => {
+          setIsSubmitting(false);
+          setIsSuccess(true);
+          setShowConfirmModal(false);
+          setEditCount(currentEdits + 1);
+        }, 1500);
+        return;
+    }
+
     try {
-      // Get the actual judge ID from localStorage
       const judgeData = localStorage.getItem("current_judge");
       if (!judgeData) {
         setErrorMsg("Authentication error. Please log in again.");
@@ -112,6 +192,7 @@ export default function EvaluatePage({ params }: { params: Promise<{ teamId: str
       const currentJudge = JSON.parse(judgeData);
       const judge_id = currentJudge.id;
 
+      // Upsert score and increment edit count
       const { error } = await supabase
         .from('scores')
         .upsert({
@@ -123,7 +204,8 @@ export default function EvaluatePage({ params }: { params: Promise<{ teamId: str
           theme_score: scores.theme_score,
           engagement_score: scores.engagement_score,
           feedback: feedback,
-          // total_score is GENERATED ALWAYS in postgres, no need to insert
+          edit_count: editCount + 1,
+          submitted_at: new Date().toISOString()
         }, { onConflict: 'judge_id, team_id' });
 
       if (error) throw error;
@@ -134,8 +216,9 @@ export default function EvaluatePage({ params }: { params: Promise<{ teamId: str
         .update({ status: 'evaluated' })
         .eq('id', team.id);
 
+      setEditCount(prev => prev + 1);
       setShowConfirmModal(false);
-      router.push("/dashboard");
+      setIsSuccess(true);
     } catch (err: any) {
       console.error("Submission failed:", err);
       setErrorMsg(err.message || "Failed to submit evaluation. Please try again.");
@@ -144,11 +227,79 @@ export default function EvaluatePage({ params }: { params: Promise<{ teamId: str
     }
   };
 
+  const handleDownloadReport = async () => {
+    if (!scorecardRef.current) return;
+    await generatePDF(scorecardRef.current, `Evaluation_Report_${team.team_name.replace(/\s+/g, '_')}`);
+  };
+
+  if (isSuccess) {
+    return (
+      <PageWrapper className="container mx-auto px-4 py-8 sm:px-8 flex items-center justify-center min-h-[80vh]">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="max-w-2xl w-full text-center"
+        >
+          <div className="flex justify-center mb-8">
+            <div className="h-24 w-24 bg-brand-orange/10 rounded-full flex items-center justify-center text-brand-orange animate-bounce">
+              <CheckCircle className="h-12 w-12" />
+            </div>
+          </div>
+          <h1 className="text-5xl font-serif font-bold text-foreground mb-4">Submission Successful!</h1>
+          <p className="text-xl text-muted-foreground mb-12">
+            You have successfully evaluated <span className="text-brand-red font-bold">{team.team_name}</span>. 
+            The scores have been locked and synchronized with the central database.
+          </p>
+          
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Button 
+              onClick={handleDownloadReport}
+              className="py-8 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-bold uppercase tracking-widest text-xs gap-3 shadow-xl"
+            >
+              <Download className="h-5 w-5" /> Download Scorecard PDF
+            </Button>
+            <Link href="/dashboard" className="w-full">
+              <Button 
+                variant="outline"
+                className="w-full py-8 rounded-2xl border-2 border-brand-red text-brand-red font-bold uppercase tracking-widest text-xs hover:bg-brand-red/5"
+              >
+                Return to Dashboard
+              </Button>
+            </Link>
+          </div>
+
+          <div className="mt-12 pt-12 border-t border-border/10">
+            <Link href="/results" className="text-brand-red font-bold uppercase tracking-widest text-xs hover:underline">
+              View Final Leaderboard
+            </Link>
+          </div>
+        </motion.div>
+
+        {/* Hidden Template for PDF Capture */}
+        <div className="fixed left-[-9999px] top-[-9999px]">
+          <ScorecardPDF ref={scorecardRef} team={team} score={{ ...scores, feedback }} />
+        </div>
+      </PageWrapper>
+    );
+  }
+
   return (
     <PageWrapper className="container mx-auto px-4 py-8 pb-32 sm:px-8 max-w-5xl">
       <Link href="/dashboard" className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-muted-foreground hover:text-brand-red transition-colors mb-8 group">
         <ChevronLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" /> Back to Dashboard
       </Link>
+
+      {editCount >= MAX_EDITS && (
+        <div className="mb-10 p-6 rounded-2xl bg-brand-red/5 border border-brand-red/20 flex items-center gap-4 text-sm shadow-sm animate-in fade-in slide-in-from-top-4 duration-500">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-brand-red/10">
+            <AlertCircle className="h-6 w-6 text-brand-red" />
+          </div>
+          <div>
+            <p className="font-bold text-brand-red uppercase tracking-widest text-xs">Maximum edit limit reached ({editCount}/{MAX_EDITS})</p>
+            <p className="text-muted-foreground mt-1 leading-relaxed">This evaluation is now locked. Admin intervention is required for any further modifications.</p>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-12 lg:grid-cols-[1fr_400px]">
         {/* Left Column: Project Info & Feedback */}
@@ -198,12 +349,13 @@ export default function EvaluatePage({ params }: { params: Promise<{ teamId: str
                 <CardTitle className="text-2xl font-serif font-bold">Constructive Feedback</CardTitle>
                 <p className="text-sm text-muted-foreground">Your notes will be shared with the team after judging concludes.</p>
               </CardHeader>
-              <CardContent className="p-8 pt-0">
+              <CardContent className={`p-8 pt-0 ${editCount >= MAX_EDITS ? 'opacity-50 pointer-events-none' : ''}`}>
                 <Textarea 
                   placeholder="Share your thoughts on their implementation, creative process, and potential areas for growth..." 
                   className="min-h-[200px] resize-y bg-muted/30 border-none focus-visible:ring-brand-orange/30 p-6 rounded-xl leading-relaxed font-medium"
                   value={feedback}
                   onChange={(e) => setFeedback(e.target.value)}
+                  disabled={editCount >= MAX_EDITS}
                 />
               </CardContent>
             </Card>
@@ -226,7 +378,7 @@ export default function EvaluatePage({ params }: { params: Promise<{ teamId: str
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="p-8 space-y-10">
+            <CardContent className={`p-8 space-y-10 ${editCount >= MAX_EDITS ? 'opacity-50 pointer-events-none' : ''}`}>
               {SCORING_CATEGORIES.map((cat) => (
                 <div key={cat.id} className="space-y-4">
                   <div className="flex justify-between items-start">
@@ -234,9 +386,18 @@ export default function EvaluatePage({ params }: { params: Promise<{ teamId: str
                       <h4 className="text-xs font-bold uppercase tracking-widest text-foreground">{cat.label}</h4>
                       <p className="text-[10px] text-muted-foreground leading-normal max-w-[200px]">{cat.description}</p>
                     </div>
-                    <span className="text-xl font-serif font-bold tracking-tighter w-10 text-right text-brand-orange">
-                      {scores[cat.id]}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <Input 
+                        type="number"
+                        value={scores[cat.id]}
+                        onChange={(e) => handleManualScoreChange(cat.id, e.target.value, cat.max)}
+                        className="w-16 h-10 text-right font-serif font-bold text-xl p-2 bg-muted/20 border-none rounded-lg text-brand-orange focus-visible:ring-brand-orange/30 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        max={cat.max}
+                        min={0}
+                        disabled={editCount >= MAX_EDITS}
+                      />
+                      <span className="text-[10px] font-bold text-muted-foreground opacity-50">/{cat.max}</span>
+                    </div>
                   </div>
                   <Slider
                     defaultValue={[0]}
@@ -263,15 +424,18 @@ export default function EvaluatePage({ params }: { params: Promise<{ teamId: str
         transition={{ delay: 0.2 }}
         className="fixed bottom-0 left-0 right-0 p-6 bg-background/80 backdrop-blur-md border-t border-border/5 z-40 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]"
       >
-        <div className="container mx-auto flex items-center justify-end gap-6 px-4 sm:px-8 max-w-5xl">
-          <Button variant="ghost" className="gap-2 text-xs font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground">
-            <Save className="h-4 w-4" /> Save as Draft
-          </Button>
+        <div className="container mx-auto flex items-center justify-end px-4 sm:px-8 max-w-5xl">
           <Button 
             onClick={() => setShowConfirmModal(true)} 
-            className="gap-2 h-12 px-8 rounded-xl bg-brand-red hover:bg-brand-red/90 text-[10px] font-bold uppercase tracking-[0.2em] shadow-xl shadow-brand-red/20"
+            disabled={editCount >= MAX_EDITS}
+            className={`gap-2 h-12 px-12 rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] shadow-xl transition-all duration-300 ${
+              editCount >= MAX_EDITS 
+              ? 'bg-muted text-muted-foreground shadow-none cursor-not-allowed' 
+              : 'bg-brand-red hover:bg-brand-red/90 text-white shadow-brand-red/20'
+            }`}
           >
-            <CheckCircle className="h-4 w-4" /> Submit final scores
+            <CheckCircle className="h-4 w-4" /> 
+            {editCount >= MAX_EDITS ? 'Evaluation Locked' : team.status === 'evaluated' ? 'Update scores' : 'Submit final scores'}
           </Button>
         </div>
       </motion.div>
@@ -299,20 +463,25 @@ export default function EvaluatePage({ params }: { params: Promise<{ teamId: str
               </div>
               
               {errorMsg && (
-                <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-[10px] font-bold uppercase tracking-widest text-center">
+                <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-600 text-xs font-bold uppercase tracking-widest text-center">
                   {errorMsg}
                 </div>
               )}
             </div>
 
-            <DialogFooter className="flex-col sm:flex-row gap-3">
-              <Button variant="ghost" onClick={() => setShowConfirmModal(false)} disabled={isSubmitting} className="flex-1 text-[10px] font-bold uppercase tracking-widest">
+            <DialogFooter className="flex-col sm:flex-row gap-3 pt-4 border-t border-border/5">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowConfirmModal(false)} 
+                disabled={isSubmitting} 
+                className="flex-1 py-6 rounded-xl text-[10px] font-bold uppercase tracking-widest border-brand-red text-foreground hover:bg-brand-red/5"
+              >
                 Review again
               </Button>
               <Button 
                 onClick={handleSubmit} 
                 disabled={isSubmitting} 
-                className="flex-1 h-12 rounded-xl bg-brand-red hover:bg-brand-red/90 text-[10px] font-bold uppercase tracking-[0.2em] shadow-lg shadow-brand-red/10"
+                className="flex-1 py-6 rounded-xl bg-brand-red hover:bg-brand-red/90 text-white text-[10px] font-bold uppercase tracking-widest shadow-lg shadow-brand-red/20"
               >
                 {isSubmitting ? (
                   <div className="flex items-center gap-2">

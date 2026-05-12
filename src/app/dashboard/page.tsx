@@ -15,6 +15,8 @@ export default function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedTheme, setSelectedTheme] = useState("All Themes");
+  const [showFilter, setShowFilter] = useState(false);
 
   useEffect(() => {
     async function fetchTeams() {
@@ -33,8 +35,12 @@ export default function DashboardPage() {
 
         if (error) throw error;
         
-        // Mock the status for now unless we do a join with scores
-        // We'll treat all as pending initially
+        if (!data || data.length === 0) {
+          console.log("Database is empty, showing mock data.");
+          setTeams(mockTeams);
+          return;
+        }
+
         const mappedTeams = (data as any[]).map(t => ({
           ...t,
           status: t.status || 'pending'
@@ -51,10 +57,14 @@ export default function DashboardPage() {
     fetchTeams();
   }, []);
   
-  const filteredTeams = teams.filter(team => 
-    team.team_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    team.project_name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const uniqueThemes = ["All Themes", ...Array.from(new Set(teams.map(t => t.category)))];
+
+  const filteredTeams = teams.filter(team => {
+    const matchesSearch = team.team_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         team.project_name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesTheme = selectedTheme === "All Themes" || team.category === selectedTheme;
+    return matchesSearch && matchesTheme;
+  });
 
   const evaluatedCount = teams.filter(t => t.status === "evaluated").length;
   const pendingCount = teams.filter(t => t.status === "pending").length;
@@ -78,8 +88,7 @@ export default function DashboardPage() {
           <h1 className="text-4xl font-serif font-bold tracking-tight text-foreground">Evaluations</h1>
           <p className="text-muted-foreground mt-2 font-medium">Review and score teams for the <span className="text-brand-red">Creative Coding Hackathon</span>.</p>
         </div>
-        
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-4">
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input 
@@ -90,9 +99,48 @@ export default function DashboardPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <Button variant="outline" size="icon" className="shrink-0 bg-background border-border/20 shadow-sm hover:border-brand-red hover:text-brand-red">
-            <Filter className="h-4 w-4" />
-          </Button>
+          
+          <div className="relative">
+            <Button 
+              variant={selectedTheme !== "All Themes" ? "default" : "outline"} 
+              size="icon" 
+              onClick={() => setShowFilter(!showFilter)}
+              className={`shrink-0 border-border/20 shadow-sm transition-all duration-300 ${
+                selectedTheme !== "All Themes" 
+                ? 'bg-brand-red hover:bg-brand-red/90 text-white' 
+                : 'bg-background hover:border-brand-red hover:text-brand-red'
+              }`}
+            >
+              <Filter className="h-4 w-4" />
+            </Button>
+            
+            {showFilter && (
+              <div className="absolute right-0 mt-2 w-64 z-50 bg-card border border-border/10 rounded-xl shadow-2xl p-2 animate-in fade-in zoom-in duration-200">
+                <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-3 py-2 border-b border-border/5 mb-1">
+                  Filter by Theme
+                </div>
+                <div className="max-h-64 overflow-y-auto">
+                  {uniqueThemes.map((theme) => (
+                    <button
+                      key={theme}
+                      onClick={() => {
+                        setSelectedTheme(theme);
+                        setShowFilter(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-between group ${
+                        selectedTheme === theme 
+                        ? 'bg-brand-red/10 text-brand-red font-semibold' 
+                        : 'hover:bg-muted text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <span className="truncate">{theme}</span>
+                      {selectedTheme === theme && <div className="h-1.5 w-1.5 rounded-full bg-brand-red" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

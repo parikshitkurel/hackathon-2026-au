@@ -41,7 +41,10 @@ export function Navbar() {
           <HackathonLogo size="sm" />
         </Link>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-6">
+          <Link href="/results" className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-brand-red transition-colors hidden sm:block">
+            Leaderboard
+          </Link>
           <Button 
             variant="ghost" 
             size="sm" 
