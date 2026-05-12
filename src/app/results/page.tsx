@@ -230,7 +230,15 @@ export default function ResultsPage() {
             </div>
             <div className="text-right">
               <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: '#94a3b8' }}>Technical Lead</p>
-              <p className="text-sm font-serif font-bold italic" style={{ color: '#C10016' }}>Parikshit Kurel</p>
+              <a 
+                href="https://www.linkedin.com/in/parikshit-kurel/" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="text-sm font-serif font-bold italic hover:underline cursor-pointer" 
+                style={{ color: '#C10016' }}
+              >
+                Parikshit Kurel
+              </a>
             </div>
           </div>
         </div>

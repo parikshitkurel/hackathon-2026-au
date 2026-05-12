@@ -103,7 +103,15 @@ export const ScorecardPDF = React.forwardRef<HTMLDivElement, ScorecardPDFProps>(
           </div>
           <div className="text-right">
             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Developer Signature</p>
-            <p className="text-sm font-serif font-bold italic" style={{ color: "#C10016" }}>Crafted by Parikshit Kurel</p>
+            <a 
+              href="https://www.linkedin.com/in/parikshit-kurel/" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="text-sm font-serif font-bold italic hover:underline cursor-pointer" 
+              style={{ color: "#C10016" }}
+            >
+              Crafted by Parikshit Kurel
+            </a>
           </div>
         </div>
 

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, AlertCircle, Eye, EyeOff, Sparkles } from "lucide-react";
+import { ArrowRight, AlertCircle, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -110,18 +110,17 @@ export default function RootPage() {
                   className="pt-8 flex flex-col items-center"
                 >
                   <p className="text-[10px] font-bold uppercase tracking-[0.5em] text-muted-foreground/60 mb-2">Designed & Developed by</p>
-                  <p className="text-2xl font-serif font-bold text-slate-800 tracking-tight">Parikshit Kurel</p>
+                  <a 
+                    href="https://www.linkedin.com/in/parikshit-kurel/" 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="text-2xl font-serif font-bold text-slate-800 tracking-tight hover:text-brand-red transition-colors cursor-pointer"
+                  >
+                    Parikshit Kurel
+                  </a>
                 </motion.div>
               </div>
 
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 0.5 }}
-                transition={{ delay: 2.8 }}
-                className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-brand-red animate-pulse"
-              >
-                <Sparkles className="h-3 w-3" /> Initializing Portal
-              </motion.div>
             </motion.div>
           </motion.div>
         ) : (
@@ -215,7 +214,14 @@ export default function RootPage() {
                   <div className="text-[8px] font-black uppercase tracking-[0.3em]">CC 2026</div>
                   <div className="text-[10px] font-bold uppercase tracking-widest text-brand-grey flex items-center gap-2">
                     <span>Crafted by</span>
-                    <span className="text-brand-red">Parikshit Kurel</span>
+                    <a 
+                      href="https://www.linkedin.com/in/parikshit-kurel/" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="text-brand-red hover:underline transition-colors cursor-pointer"
+                    >
+                      Parikshit Kurel
+                    </a>
                   </div>
                 </div>
               </CardFooter>
