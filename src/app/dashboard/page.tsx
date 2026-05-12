@@ -1,0 +1,217 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { motion } from "framer-motion";
+import { Search, Filter, CheckCircle2, CircleDashed, Users, LayoutGrid } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageWrapper } from "@/components/layout/PageWrapper";
+import { mockTeams, Team } from "@/lib/mock-data";
+import { supabase, hasSupabaseConfig } from "@/lib/supabase";
+
+export default function DashboardPage() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchTeams() {
+      if (!hasSupabaseConfig) {
+        console.log("No Supabase config found, falling back to mock data.");
+        setTeams(mockTeams);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('teams')
+          .select('*')
+          .order('submitted_at', { ascending: false });
+
+        if (error) throw error;
+        
+        // Mock the status for now unless we do a join with scores
+        // We'll treat all as pending initially
+        const mappedTeams = (data as any[]).map(t => ({
+          ...t,
+          status: t.status || 'pending'
+        }));
+        setTeams(mappedTeams);
+      } catch (err) {
+        console.error("Error fetching teams:", err);
+        setTeams(mockTeams); // fallback on error
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchTeams();
+  }, []);
+  
+  const filteredTeams = teams.filter(team => 
+    team.team_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    team.project_name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const evaluatedCount = teams.filter(t => t.status === "evaluated").length;
+  const pendingCount = teams.filter(t => t.status === "pending").length;
+
+  if (loading) {
+    return (
+      <PageWrapper className="container mx-auto px-4 py-8 sm:px-8 flex justify-center items-center min-h-[60vh]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <p className="text-muted-foreground">Loading dashboard...</p>
+        </div>
+      </PageWrapper>
+    );
+  }
+
+  return (
+    <PageWrapper className="container mx-auto px-4 py-8 sm:px-8">
+      {/* Header Section */}
+      <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between border-b border-border/5 pb-8">
+        <div>
+          <h1 className="text-4xl font-serif font-bold tracking-tight text-foreground">Evaluations</h1>
+          <p className="text-muted-foreground mt-2 font-medium">Review and score teams for the <span className="text-brand-red">Creative Coding Hackathon</span>.</p>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input 
+              type="search" 
+              placeholder="Search teams..." 
+              className="pl-10 bg-background border-border/20 shadow-sm focus-visible:ring-brand-red"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <Button variant="outline" size="icon" className="shrink-0 bg-background border-border/20 shadow-sm hover:border-brand-red hover:text-brand-red">
+            <Filter className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid gap-6 mb-12 sm:grid-cols-3">
+        {[
+          { label: "Total Assigned", value: teams.length, icon: Users, color: "bg-brand-red", textColor: "text-brand-red" },
+          { label: "Evaluated", value: evaluatedCount, icon: CheckCircle2, color: "bg-brand-orange", textColor: "text-brand-orange" },
+          { label: "Pending", value: pendingCount, icon: CircleDashed, color: "bg-brand-yellow", textColor: "text-brand-yellow" },
+        ].map((stat, index) => (
+          <motion.div
+            key={stat.label}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: index * 0.1 }}
+          >
+            <Card className="bg-card border-none shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] overflow-hidden relative group">
+              <div className={`absolute top-0 left-0 w-1.5 h-full ${stat.color}`} />
+              <CardContent className="flex items-center justify-between p-7">
+                <div className="space-y-1">
+                  <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{stat.label}</p>
+                  <p className="text-4xl font-serif font-bold">{stat.value}</p>
+                </div>
+                <div className={`flex h-14 w-14 items-center justify-center rounded-2xl bg-muted/30 group-hover:bg-muted/50 transition-colors ${stat.textColor}`}>
+                  <stat.icon className="h-7 w-7" />
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </div>
+
+      {!hasSupabaseConfig && (
+        <div className="mb-10 p-5 rounded-xl bg-brand-yellow/5 border border-brand-yellow/20 text-brand-grey flex items-center gap-4 text-sm shadow-sm backdrop-blur-sm">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-yellow/10">
+            <CircleDashed className="h-5 w-5 text-brand-yellow" />
+          </div>
+          <p className="leading-relaxed">
+            <span className="font-bold text-foreground">Offline Preview Mode</span> — Showing curated competition data. 
+            Connect Supabase to fetch live submissions from the <span className="font-semibold text-brand-red">Avantika University</span> database.
+          </p>
+        </div>
+      )}
+
+      {/* Teams Grid */}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-serif font-bold tracking-tight">Your assigned submissions</h2>
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+            <LayoutGrid className="h-4 w-4" />
+            <span>{filteredTeams.length} Teams</span>
+          </div>
+        </div>
+
+        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+          {filteredTeams.map((team, index) => (
+            <motion.div
+              key={team.id}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.4, delay: 0.1 + index * 0.05 }}
+              className="h-full"
+            >
+              <Card className="h-full flex flex-col bg-card border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] transition-all duration-300 overflow-hidden group">
+                <div className="h-2 w-full bg-gradient-to-r from-brand-red via-brand-orange to-brand-yellow opacity-0 group-hover:opacity-100 transition-opacity" />
+                <CardHeader className="pb-4 pt-8">
+                  <div className="flex items-start justify-between">
+                    <div className="inline-flex items-center rounded-md bg-brand-red/5 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-brand-red">
+                      {team.category}
+                    </div>
+                    {team.status === 'evaluated' ? (
+                      <CheckCircle2 className="h-4 w-4 text-brand-orange" />
+                    ) : (
+                      <CircleDashed className="h-4 w-4 text-brand-yellow animate-pulse" />
+                    )}
+                  </div>
+                  <CardTitle className="text-2xl font-serif mt-4 leading-tight group-hover:text-brand-red transition-colors">{team.project_name}</CardTitle>
+                  <CardDescription className="text-xs font-medium uppercase tracking-wider text-muted-foreground mt-1">by {team.team_name}</CardDescription>
+                </CardHeader>
+                <CardContent className="flex-1 px-6 pb-6">
+                  <p className="text-sm text-muted-foreground/80 leading-relaxed line-clamp-3">
+                    {team.description}
+                  </p>
+                  <div className="mt-6 pt-6 border-t border-border/5 flex items-center gap-4 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-3.5 w-3.5 text-brand-grey" />
+                      <span>{team.members} members</span>
+                    </div>
+                  </div>
+                </CardContent>
+                <CardFooter className="p-6 pt-0">
+                  <Link href={`/evaluate/${team.id}`} className="w-full">
+                    <Button 
+                      variant={team.status === 'evaluated' ? "secondary" : "default"} 
+                      className={`w-full py-6 rounded-xl font-bold uppercase tracking-widest text-[10px] transition-all duration-300 ${
+                        team.status === 'evaluated' 
+                        ? 'bg-muted/50 hover:bg-brand-orange/10 hover:text-brand-orange border-none shadow-none' 
+                        : 'bg-brand-red hover:bg-brand-red/90 shadow-lg shadow-brand-red/20'
+                      }`}
+                    >
+                      {team.status === 'evaluated' ? 'Review scores' : 'Start scoring'}
+                    </Button>
+                  </Link>
+                </CardFooter>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+        
+        {filteredTeams.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted/50 text-muted-foreground mb-4">
+              <Search className="h-8 w-8" />
+            </div>
+            <h3 className="text-lg font-medium">No teams found</h3>
+            <p className="text-muted-foreground">Try adjusting your search criteria.</p>
+          </div>
+        )}
+      </div>
+    </PageWrapper>
+  );
+}
