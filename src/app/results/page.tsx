@@ -1,12 +1,24 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { motion } from "framer-motion";
-import { ChevronLeft, Download, Trophy, Medal, Star, LayoutGrid, ArrowRight } from "lucide-react";
+import React, { useRef, useState, useEffect } from "react";
 import Link from "next/link";
+import { motion } from "framer-motion";
+import { 
+  Trophy, 
+  Medal, 
+  ArrowRight, 
+  Download, 
+  Search, 
+  Users, 
+  ExternalLink, 
+  ChevronLeft,
+  ChevronRight,
+  TrendingUp,
+  Award
+} from "lucide-react";
 import { PageWrapper } from "@/components/layout/PageWrapper";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { mockTeams, Team, mockScores, Score } from "@/lib/mock-data";
 import { supabase, hasSupabaseConfig } from "@/lib/supabase";
@@ -15,7 +27,7 @@ import { generatePDF } from "@/lib/pdf-utils";
 
 interface TeamResult extends Team {
   finalScore: number;
-  rank?: number;
+  rank: number;
 }
 
 export default function ResultsPage() {
@@ -25,88 +37,103 @@ export default function ResultsPage() {
 
   useEffect(() => {
     async function fetchResults() {
-      let teamsData: Team[] = [];
-      let scoresData: Score[] = [];
-
-      if (!hasSupabaseConfig) {
-        teamsData = mockTeams;
-        scoresData = mockScores;
-      } else {
-        try {
-          const { data: teams, error: tErr } = await supabase.from('teams').select('*');
-          const { data: scores, error: sErr } = await supabase.from('scores').select('*');
-          
-          if (tErr || sErr) throw tErr || sErr;
-          teamsData = teams;
-          scoresData = scores;
-        } catch (err) {
-          console.error("Fetch failed:", err);
-          teamsData = mockTeams;
+      setLoading(true);
+      try {
+        let scoresData: Score[] = [];
+        
+        if (hasSupabaseConfig) {
+          const { data } = await supabase.from('scores').select('*');
+          if (data) scoresData = data;
+        } else {
           scoresData = mockScores;
         }
+
+        // Aggregate scores per team
+        const teamAverages = mockTeams.map(team => {
+          const teamScores = scoresData.filter(s => s.team_id === team.id);
+          const total = teamScores.reduce((acc, s) => {
+            return acc + s.creativity_score + s.technical_score + s.design_score + s.theme_score + s.engagement_score;
+          }, 0);
+          
+          const average = teamScores.length > 0 ? Math.round(total / teamScores.length) : 0;
+          
+          return {
+            ...team,
+            finalScore: average
+          };
+        });
+
+        // Sort and rank
+        const sorted = teamAverages.sort((a, b) => b.finalScore - a.finalScore).map((t, i) => ({
+          ...t,
+          rank: i + 1
+        }));
+
+        setResults(sorted);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
       }
-
-      // Calculate final scores (average if multiple judges, or total)
-      const mappedResults = teamsData.map(team => {
-        const teamScores = scoresData.filter(s => s.team_id === team.id);
-        const avgScore = teamScores.length > 0 
-          ? Math.round(teamScores.reduce((acc, s) => acc + (s.total_score || 0), 0) / teamScores.length)
-          : 0;
-        
-        return {
-          ...team,
-          finalScore: avgScore
-        };
-      }).sort((a, b) => b.finalScore - a.finalScore);
-
-      // Add rankings
-      const rankedResults = mappedResults.map((t, i) => ({ ...t, rank: i + 1 }));
-      setResults(rankedResults);
-      setLoading(false);
     }
 
     fetchResults();
   }, []);
 
-  const handleDownloadReport = async () => {
+  const handleExportReport = async () => {
     if (!reportRef.current) return;
-    await generatePDF(reportRef.current, `Hackathon_Final_Results_2026`);
+    await generatePDF(reportRef.current, "Final_Hackathon_Results_2026");
   };
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <PageWrapper className="flex items-center justify-center min-h-screen">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-brand-red border-t-transparent" />
+          <p className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Calculating Results...</p>
+        </div>
+      </PageWrapper>
+    );
+  }
+
+  const podium = results.slice(0, 3);
 
   return (
-    <PageWrapper className="container mx-auto px-4 py-8 sm:px-8">
-      <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <PageWrapper className="container mx-auto px-4 py-12 sm:px-8 max-w-7xl">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16">
         <div>
-          <Link href="/dashboard" className="text-xs font-bold uppercase tracking-widest text-muted-foreground hover:text-brand-red flex items-center gap-2 mb-4 transition-colors">
-            <ChevronLeft className="h-4 w-4" /> Back to dashboard
-          </Link>
-          <h1 className="text-4xl font-serif font-bold tracking-tight text-foreground">Final Results</h1>
-          <p className="text-muted-foreground mt-2 font-medium">Consolidated leaderboard and evaluation summary for all participating teams.</p>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-red/10 text-brand-red text-[10px] font-bold uppercase tracking-widest mb-4">
+            <Trophy className="h-3 w-3" /> Live Standings
+          </div>
+          <h1 className="text-4xl sm:text-6xl font-serif font-bold tracking-tighter text-foreground mb-4">
+            The <span className="text-brand-red italic">Leaderboard</span>
+          </h1>
+          <p className="text-lg text-muted-foreground max-w-xl leading-relaxed">
+            Final aggregate scores calculated from all judge evaluations across five core innovation categories.
+          </p>
         </div>
         <Button 
-          onClick={handleDownloadReport}
-          className="bg-brand-red hover:bg-brand-red/90 text-white font-bold uppercase tracking-widest text-[10px] py-6 px-8 rounded-xl shadow-lg shadow-brand-red/20 gap-2"
+          onClick={handleExportReport}
+          className="h-14 px-8 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-bold uppercase tracking-widest text-xs gap-3 shadow-2xl shadow-slate-900/20"
         >
-          <Download className="h-4 w-4" /> Export PDF Report
+          <Download className="h-4 w-4" /> Export Results Report
         </Button>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-3 mb-12">
-        {/* Top 3 Podium */}
-        {results.slice(0, 3).map((team, index) => (
+      {/* Podium Display */}
+      <div className="grid gap-6 md:grid-cols-3 mb-16">
+        {podium.map((team, index) => (
           <motion.div
             key={team.id}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
           >
-            <Card className={`relative overflow-hidden border-none shadow-xl ${index === 0 ? 'bg-slate-900 text-white scale-105 z-10' : 'bg-card'}`}>
-              <div className={`absolute top-0 left-0 w-full h-1.5 ${index === 0 ? 'bg-brand-orange' : index === 1 ? 'bg-slate-300' : 'bg-amber-600'}`} />
-              <CardHeader className="pt-8 text-center">
-                <div className="flex justify-center mb-4">
-                  {index === 0 ? <Trophy className="h-12 w-12 text-brand-orange" /> : 
+            <Card className={`border-none shadow-2xl rounded-[2.5rem] overflow-hidden ${index === 0 ? 'bg-slate-900 text-white scale-105 z-10' : 'bg-card'}`}>
+              <div className={`h-2 w-full ${index === 0 ? 'bg-brand-orange' : index === 1 ? 'bg-slate-300' : 'bg-amber-600'}`} />
+              <CardHeader className="text-center pt-10">
+                <div className="flex justify-center mb-6">
+                  {index === 0 ? <Trophy className="h-16 w-16 text-brand-yellow" /> : 
                    index === 1 ? <Medal className="h-10 w-10 text-slate-300" /> : 
                    <Medal className="h-10 w-10 text-amber-600" />}
                 </div>
@@ -127,14 +154,14 @@ export default function ResultsPage() {
       </div>
 
       {/* Full Leaderboard Table */}
-      <Card className="border-none shadow-2xl rounded-3xl overflow-hidden">
-        <CardContent className="p-0">
+      <Card className="border-none shadow-2xl rounded-3xl overflow-hidden mb-20">
+        <CardContent className="p-0 overflow-x-auto">
           <Table>
             <TableHeader className="bg-muted/30">
               <TableRow className="border-none">
                 <TableHead className="w-20 text-center font-bold uppercase tracking-widest text-[10px] py-6">Rank</TableHead>
-                <TableHead className="font-bold uppercase tracking-widest text-[10px] py-6">Team & Project</TableHead>
-                <TableHead className="font-bold uppercase tracking-widest text-[10px] py-6">Category</TableHead>
+                <TableHead className="font-bold uppercase tracking-widest text-[10px] py-6 min-w-[200px]">Team & Project</TableHead>
+                <TableHead className="font-bold uppercase tracking-widest text-[10px] py-6 hidden sm:table-cell">Category</TableHead>
                 <TableHead className="text-center font-bold uppercase tracking-widest text-[10px] py-6">Score</TableHead>
                 <TableHead className="text-right font-bold uppercase tracking-widest text-[10px] py-6 pr-8">Actions</TableHead>
               </TableRow>
@@ -149,7 +176,7 @@ export default function ResultsPage() {
                       <p className="text-xs text-muted-foreground">{team.project_name}</p>
                     </div>
                   </TableCell>
-                  <TableCell className="py-6">
+                  <TableCell className="py-6 hidden sm:table-cell">
                     <span className="inline-flex items-center rounded-full bg-brand-red/5 px-3 py-1 text-[10px] font-bold text-brand-red uppercase tracking-wider">
                       {team.category}
                     </span>
@@ -200,33 +227,27 @@ export default function ResultsPage() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b-2" style={{ backgroundColor: '#f8fafc', borderColor: '#e2e8f0' }}>
-                <th className="p-6 font-bold uppercase tracking-widest text-[10px]" style={{ color: '#94a3b8' }}>Rank</th>
-                <th className="p-6 font-bold uppercase tracking-widest text-[10px]" style={{ color: '#94a3b8' }}>Team Name</th>
-                <th className="p-6 font-bold uppercase tracking-widest text-[10px]" style={{ color: '#94a3b8' }}>Theme/Category</th>
-                <th className="p-6 text-right font-bold uppercase tracking-widest text-[10px]" style={{ color: '#94a3b8' }}>Final Score</th>
+                <th className="py-6 px-4 font-bold uppercase tracking-widest text-[10px]">Rank</th>
+                <th className="py-6 px-4 font-bold uppercase tracking-widest text-[10px]">Team Name</th>
+                <th className="py-6 px-4 font-bold uppercase tracking-widest text-[10px]">Project</th>
+                <th className="py-6 px-4 font-bold uppercase tracking-widest text-[10px] text-right">Final Score</th>
               </tr>
             </thead>
             <tbody>
-              {results.map((team) => (
+              {results.map((team, index) => (
                 <tr key={team.id} className="border-b" style={{ borderColor: '#f1f5f9' }}>
-                  <td className="p-6 font-serif font-bold text-xl">{team.rank}</td>
-                  <td className="p-6">
-                    <p className="font-bold" style={{ color: '#1e293b' }}>{team.team_name}</p>
-                    <p className="text-xs" style={{ color: '#64748b' }}>{team.project_name}</p>
-                  </td>
-                  <td className="p-6 text-sm" style={{ color: '#475569' }}>{team.category}</td>
-                  <td className="p-6 text-right">
-                    <span className="font-serif font-bold text-2xl" style={{ color: '#C10016' }}>{team.finalScore}</span>
-                  </td>
+                  <td className="py-6 px-4 font-serif font-bold text-xl">#{team.rank}</td>
+                  <td className="py-6 px-4 font-bold">{team.team_name}</td>
+                  <td className="py-6 px-4 text-slate-500">{team.project_name}</td>
+                  <td className="py-6 px-4 text-right font-serif font-bold text-2xl" style={{ color: '#C10016' }}>{team.finalScore}</td>
                 </tr>
               ))}
             </tbody>
           </table>
 
-          <div className="mt-20 pt-10 border-t flex justify-between items-end" style={{ borderColor: '#e2e8f0' }}>
-            <div className="opacity-50">
-              <p className="text-[10px] font-bold uppercase tracking-widest mb-1">Generated By</p>
-              <p className="text-sm font-serif font-bold">Avantika Judging System v1.0</p>
+          <div className="mt-20 pt-10 border-t flex justify-between items-center" style={{ borderColor: '#e2e8f0' }}>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-slate-400">Published via Avantika Hackathon Systems</p>
             </div>
             <div className="text-right">
               <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: '#94a3b8' }}>Technical Lead</p>

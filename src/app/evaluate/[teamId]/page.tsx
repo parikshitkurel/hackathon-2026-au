@@ -245,7 +245,7 @@ export default function EvaluatePage({ params }: { params: Promise<{ teamId: str
               <CheckCircle className="h-12 w-12" />
             </div>
           </div>
-          <h1 className="text-5xl font-serif font-bold text-foreground mb-4">Submission Successful!</h1>
+          <h1 className="text-3xl sm:text-5xl font-serif font-bold text-foreground mb-4">Submission Successful!</h1>
           <p className="text-xl text-muted-foreground mb-12">
             You have successfully evaluated <span className="text-brand-red font-bold">{team.team_name}</span>. 
             The scores have been locked and synchronized with the central database.
@@ -307,7 +307,7 @@ export default function EvaluatePage({ params }: { params: Promise<{ teamId: str
           <section>
             <div className="flex flex-wrap items-start justify-between gap-6">
               <div className="space-y-2">
-                <h1 className="text-5xl font-serif font-bold tracking-tight text-foreground leading-tight">{team.project_name}</h1>
+                <h1 className="text-3xl sm:text-5xl font-serif font-bold tracking-tight text-foreground leading-tight">{team.project_name}</h1>
                 <p className="text-sm font-bold uppercase tracking-[0.2em] text-brand-grey">Submitted by {team.team_name}</p>
               </div>
               <div className="inline-flex items-center rounded-md bg-brand-red/5 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-brand-red border border-brand-red/10 shadow-sm">
@@ -422,13 +422,13 @@ export default function EvaluatePage({ params }: { params: Promise<{ teamId: str
         initial={{ y: 100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.2 }}
-        className="fixed bottom-0 left-0 right-0 p-6 bg-background/80 backdrop-blur-md border-t border-border/5 z-40 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]"
+        className="fixed bottom-0 left-0 right-0 p-4 sm:p-6 bg-background/80 backdrop-blur-md border-t border-border/5 z-40 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]"
       >
-        <div className="container mx-auto flex items-center justify-end px-4 sm:px-8 max-w-5xl">
+        <div className="container mx-auto flex items-center justify-end px-0 sm:px-8 max-w-5xl">
           <Button 
             onClick={() => setShowConfirmModal(true)} 
             disabled={editCount >= MAX_EDITS}
-            className={`gap-2 h-12 px-12 rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] shadow-xl transition-all duration-300 ${
+            className={`w-full sm:w-auto gap-2 h-12 px-12 rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] shadow-xl transition-all duration-300 ${
               editCount >= MAX_EDITS 
               ? 'bg-muted text-muted-foreground shadow-none cursor-not-allowed' 
               : 'bg-brand-red hover:bg-brand-red/90 text-white shadow-brand-red/20'
