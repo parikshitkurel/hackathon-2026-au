@@ -34,4 +34,4 @@ export const AUTHORIZED_JUDGES = [
     role: "judge",
     active: true
   },
-];
+] as const;
