@@ -16,7 +16,6 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { fetchJudgesFromSupabase, updateJudgeInSupabase, JudgeAccount } from "@/lib/persistence";
-import { useToast } from "@/hooks/use-toast"; // Assuming shadcn toast is available, if not we use alert
 
 export default function AdminJudges() {
   const [judges, setJudges] = useState<JudgeAccount[]>([]);
