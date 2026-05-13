@@ -40,54 +40,46 @@ export default function ResultsPage() {
     async function fetchResults() {
       setLoading(true);
       try {
-        let scoresData: Score[] = [];
+        const { data: dbEvaluations } = await supabase
+          .from('evaluations')
+          .select('*');
+
+        const localEvals = getEvaluations();
         
-        if (hasSupabaseConfig) {
-          const { data } = await supabase.from('scores').select('*');
-          if (data) scoresData = data;
+        // Combine both, preferring DB if available
+        const combinedEvals: Record<string, any> = { ...localEvals };
+        if (dbEvaluations) {
+          dbEvaluations.forEach(ev => {
+            combinedEvals[ev.team_id] = {
+              teamId: ev.team_id,
+              scores: {
+                creativity_score: ev.creativity_score,
+                technical_score: ev.technical_score,
+                design_score: ev.design_score,
+                theme_score: ev.theme_score,
+                engagement_score: ev.engagement_score,
+              },
+              feedback: ev.feedback
+            };
+          });
         }
 
-        // Always get local scores and merge them, prioritizing local over mock
-        const localEvals = getEvaluations();
-        const localScores: Score[] = Object.values(localEvals).map(ev => ({
-          id: `local-${ev.teamId}`,
-          team_id: ev.teamId,
-          judge_id: "local-judge",
-          creativity_score: ev.scores.creativity_score || 0,
-          technical_score: ev.scores.technical_score || 0,
-          design_score: ev.scores.design_score || 0,
-          theme_score: ev.scores.theme_score || 0,
-          engagement_score: ev.scores.engagement_score || 0,
-          total_score: Object.values(ev.scores).reduce((a, b) => (a || 0) + (b || 0), 0),
-          feedback: ev.feedback,
-          submitted_at: ev.submittedAt,
-          edit_count: 0
-        }));
-    const fetchLatestScores = async () => {
-      const { data: dbEvaluations, error } = await supabase
-        .from('evaluations')
-        .select('*');
-
-      const localEvals = getEvaluations();
-      
-      // Combine both, preferring DB if available
-      const combinedEvals: Record<string, any> = { ...localEvals };
-      if (dbEvaluations) {
-        dbEvaluations.forEach(ev => {
-          combinedEvals[ev.team_id] = {
-            teamId: ev.team_id,
-            scores: {
-              creativity_score: ev.creativity_score,
-              technical_score: ev.technical_score,
-              design_score: ev.design_score,
-              theme_score: ev.theme_score,
-              engagement_score: ev.engagement_score,
-            },
-            feedback: ev.feedback
+        const teamAverages = mockTeams.map(team => {
+          const evaluation = combinedEvals[team.id];
+          const totalScore = evaluation ? 
+            (evaluation.scores.creativity_score || 0) +
+            (evaluation.scores.technical_score || 0) +
+            (evaluation.scores.design_score || 0) +
+            (evaluation.scores.theme_score || 0) +
+            (evaluation.scores.engagement_score || 0) : 0;
+          
+          return {
+            ...team,
+            finalScore: totalScore,
+            status: evaluation ? 'evaluated' : 'pending'
           };
         });
 
-        // Sort and rank
         const sorted = teamAverages.sort((a, b) => b.finalScore - a.finalScore).map((t, i) => ({
           ...t,
           rank: i + 1
@@ -95,7 +87,7 @@ export default function ResultsPage() {
 
         setResults(sorted);
       } catch (err) {
-        console.error(err);
+        console.error("Error fetching results:", err);
       } finally {
         setLoading(false);
       }
