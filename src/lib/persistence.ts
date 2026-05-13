@@ -77,7 +77,7 @@ export const initializeJudges = async (initialJudges: JudgeAccount[] | readonly 
   // Attempt to sync to Supabase if not already there
   const { data } = await supabase.from('judges').select('count');
   if (!data || data.length === 0) {
-    await supabase.from('judges').insert(initialJudges);
+    await supabase.from('judges').insert([...initialJudges]);
   }
 };
 

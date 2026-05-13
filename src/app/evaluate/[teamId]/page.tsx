@@ -241,9 +241,10 @@ export default function EvaluatePage({ params }: { params: Promise<{ teamId: str
       setEditCount(prev => prev + 1);
       setShowConfirmModal(false);
       setIsSuccess(true);
-    } catch (err: any) {
+    } catch (err) {
       console.error("Submission failed:", err);
-      setErrorMsg(err.message || "Failed to submit evaluation. Please try again.");
+      const message = err instanceof Error ? err.message : "Failed to submit evaluation. Please try again.";
+      setErrorMsg(message);
     } finally {
       setIsSubmitting(false);
     }

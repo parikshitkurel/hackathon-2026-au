@@ -52,7 +52,7 @@ export default function DashboardPage() {
           return;
         }
 
-        const mappedTeams = (data as any[]).map(t => ({
+        const mappedTeams = (data as Team[]).map(t => ({
           ...t,
           status: (t.status || 'pending') as 'pending' | 'evaluated'
         }));

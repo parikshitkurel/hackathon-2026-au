@@ -24,7 +24,7 @@ import { mockTeams, Team, mockScores, Score } from "@/lib/mock-data";
 import { supabase, hasSupabaseConfig } from "@/lib/supabase";
 import { PDFLogo } from "@/components/brand/PDFLogo";
 import { generatePDF } from "@/lib/pdf-utils";
-import { getEvaluations } from "@/lib/persistence";
+import { getEvaluations, LocalEvaluation } from "@/lib/persistence";
 
 interface TeamResult extends Team {
   finalScore: number;
@@ -47,7 +47,7 @@ export default function ResultsPage() {
         const localEvals = getEvaluations();
         
         // Combine both, preferring DB if available
-        const combinedEvals: Record<string, any> = { ...localEvals };
+        const combinedEvals: Record<string, LocalEvaluation> = { ...localEvals };
         if (dbEvaluations) {
           dbEvaluations.forEach(ev => {
             combinedEvals[ev.team_id] = {
@@ -59,7 +59,8 @@ export default function ResultsPage() {
                 theme_score: ev.theme_score,
                 engagement_score: ev.engagement_score,
               },
-              feedback: ev.feedback
+              feedback: ev.feedback,
+              submittedAt: ev.submitted_at
             };
           });
         }
