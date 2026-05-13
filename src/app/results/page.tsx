@@ -76,7 +76,7 @@ export default function ResultsPage() {
           return {
             ...team,
             finalScore: totalScore,
-            status: evaluation ? 'evaluated' : 'pending'
+            status: (evaluation ? 'evaluated' : 'pending') as 'pending' | 'evaluated'
           };
         });
 

@@ -54,7 +54,7 @@ export default function DashboardPage() {
 
         const mappedTeams = (data as any[]).map(t => ({
           ...t,
-          status: t.status || 'pending'
+          status: (t.status || 'pending') as 'pending' | 'evaluated'
         }));
         setTeams(mappedTeams);
       } catch (err) {
