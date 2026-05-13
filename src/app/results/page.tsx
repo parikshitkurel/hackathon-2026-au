@@ -20,11 +20,11 @@ import { PageWrapper } from "@/components/layout/PageWrapper";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { mockTeams, Team, mockScores, Score } from "@/lib/mock-data";
+import { Team } from "@/lib/mock-data";
 import { supabase, hasSupabaseConfig } from "@/lib/supabase";
 import { PDFLogo } from "@/components/brand/PDFLogo";
 import { generatePDF } from "@/lib/pdf-utils";
-import { getEvaluations, LocalEvaluation } from "@/lib/persistence";
+import { fetchTeamsFromSupabase, fetchAllEvaluationsFromSupabase, LocalEvaluation } from "@/lib/persistence";
 
 interface TeamResult extends Team {
   finalScore: number;
@@ -37,64 +37,81 @@ export default function ResultsPage() {
   const reportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    async function fetchResults() {
+    let teamsSubscription: any;
+
+    async function loadData() {
       setLoading(true);
       try {
-        const { data: dbEvaluations } = await supabase
-          .from('evaluations')
-          .select('*');
-
-        const localEvals = getEvaluations();
+        const teams = await fetchTeamsFromSupabase();
+        const evaluations = await fetchAllEvaluationsFromSupabase();
         
-        // Combine both, preferring DB if available
-        const combinedEvals: Record<string, LocalEvaluation> = { ...localEvals };
-        if (dbEvaluations) {
-          dbEvaluations.forEach(ev => {
-            combinedEvals[ev.team_id] = {
-              teamId: ev.team_id,
-              scores: {
-                creativity_score: ev.creativity_score,
-                technical_score: ev.technical_score,
-                design_score: ev.design_score,
-                theme_score: ev.theme_score,
-                engagement_score: ev.engagement_score,
-              },
-              feedback: ev.feedback,
-              submittedAt: ev.submitted_at
-            };
-          });
+        calculateAndSetResults(teams, evaluations);
+
+        // Set up Real-time listener
+        if (hasSupabaseConfig) {
+          teamsSubscription = supabase
+            .channel('evaluations-channel')
+            .on(
+              'postgres_changes', 
+              { event: '*', table: 'evaluations', schema: 'public' }, 
+              async () => {
+                // Re-fetch all evaluations to get the latest state across all judges
+                const updatedEvals = await fetchAllEvaluationsFromSupabase();
+                calculateAndSetResults(teams, updatedEvals);
+              }
+            )
+            .subscribe();
         }
-
-        const teamAverages = mockTeams.map(team => {
-          const evaluation = combinedEvals[team.id];
-          const totalScore = evaluation ? 
-            (evaluation.scores.creativity_score || 0) +
-            (evaluation.scores.technical_score || 0) +
-            (evaluation.scores.design_score || 0) +
-            (evaluation.scores.theme_score || 0) +
-            (evaluation.scores.engagement_score || 0) : 0;
-          
-          return {
-            ...team,
-            finalScore: totalScore,
-            status: (evaluation ? 'evaluated' : 'pending') as 'pending' | 'evaluated'
-          };
-        });
-
-        const sorted = teamAverages.sort((a, b) => b.finalScore - a.finalScore).map((t, i) => ({
-          ...t,
-          rank: i + 1
-        }));
-
-        setResults(sorted);
       } catch (err) {
-        console.error("Error fetching results:", err);
+        console.error("Error loading results:", err);
       } finally {
         setLoading(false);
       }
     }
 
-    fetchResults();
+    function calculateAndSetResults(teams: any[], allEvaluations: Record<string, any>) {
+      // Group evaluations by teamId to calculate averages
+      const teamScoresMap: Record<string, { total: number, count: number }> = {};
+      
+      Object.values(allEvaluations).forEach(ev => {
+        if (!teamScoresMap[ev.teamId]) {
+          teamScoresMap[ev.teamId] = { total: 0, count: 0 };
+        }
+        
+        const sum = (ev.scores.creativity_score || 0) +
+                    (ev.scores.technical_score || 0) +
+                    (ev.scores.design_score || 0) +
+                    (ev.scores.theme_score || 0) +
+                    (ev.scores.engagement_score || 0);
+        
+        teamScoresMap[ev.teamId].total += sum;
+        teamScoresMap[ev.teamId].count += 1;
+      });
+
+      const processedResults = teams.map(team => {
+        const stats = teamScoresMap[team.id];
+        const averageScore = stats && stats.count > 0 ? Math.round(stats.total / stats.count) : 0;
+        
+        return {
+          ...team,
+          finalScore: averageScore,
+          status: (stats && stats.count > 0 ? 'evaluated' : 'pending') as 'pending' | 'evaluated'
+        };
+      });
+
+      const sorted = processedResults.sort((a, b) => b.finalScore - a.finalScore).map((t, i) => ({
+        ...t,
+        rank: i + 1
+      }));
+
+      setResults(sorted);
+    }
+
+    loadData();
+
+    return () => {
+      if (teamsSubscription) supabase.removeChannel(teamsSubscription);
+    };
   }, []);
 
   const handleExportReport = async () => {
