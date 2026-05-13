@@ -90,24 +90,22 @@ END $$;
 
 ALTER PUBLICATION supabase_realtime ADD TABLE evaluations;
 
--- Add sample admin user
--- NOTE: In production, passwords should be hashed. 
--- For this hackathon portal, we'll use the plain text keys as requested.
+-- Add authorized accounts (1 Admin + 3 Judges)
+-- NOTE: In this portal, we use direct authentication with these keys as requested.
 INSERT INTO judges (id, email, password, name, role, active)
-VALUES ('admin-001', 'admin@avantika.edu.in', 'Admin@Avantika', 'System Administrator', 'admin', true)
+VALUES 
+('admin-001', 'admin@avantika.edu.in', 'Admin@Avantika', 'System Administrator', 'admin', true),
+('judge-001', 'judge1@avantika.edu.in', 'Hack@Judge1', 'Judge 1', 'judge', true),
+('judge-002', 'judge2@avantika.edu.in', 'AvantikaXHack', 'Judge 2', 'judge', true),
+('judge-003', 'judge3@avantika.edu.in', 'Avantika@#2026', 'Judge 3', 'judge', true)
 ON CONFLICT (id) DO NOTHING;
 
 -- Policies for Security
-ALTER TABLE judges ENABLE ROW LEVEL SECURITY;
-ALTER TABLE evaluations ENABLE ROW LEVEL SECURITY;
+-- For this hackathon portal, we are using a custom 'localStorage' auth bridge.
+-- To ensure sync works across all judge devices without complex Supabase Auth setup,
+-- we will disable RLS for now. 
+-- IN PRODUCTION with real users, you should use Supabase Auth and proper policies.
 
--- Allow all judges to read teams
-CREATE POLICY "Judges can view teams" ON teams FOR SELECT USING (true);
-
--- Only admins can manage judges
-CREATE POLICY "Admins can manage judges" ON judges FOR ALL 
-  USING (EXISTS (SELECT 1 FROM judges WHERE id = auth.uid()::text AND role = 'admin'));
-
--- Judges can manage their own evaluations
--- (This requires Supabase Auth to be fully set up. 
--- For the current 'localStorage' auth bridge, you might prefer keeping RLS disabled or using an API Key.)
+ALTER TABLE judges DISABLE ROW LEVEL SECURITY;
+ALTER TABLE evaluations DISABLE ROW LEVEL SECURITY;
+ALTER TABLE teams DISABLE ROW LEVEL SECURITY;

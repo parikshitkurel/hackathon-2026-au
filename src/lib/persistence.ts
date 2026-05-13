@@ -164,7 +164,8 @@ export const fetchAllEvaluationsFromSupabase = async (): Promise<Record<string, 
         engagement_score: ev.engagement_score,
       },
       feedback: ev.feedback,
-      submittedAt: ev.submitted_at
+      submittedAt: ev.submitted_at,
+      edit_count: ev.edit_count
     };
   });
 
@@ -208,4 +209,31 @@ export const getTeamStatus = (teamId: string, judgeId?: string): 'pending' | 'ev
   const evals = getEvaluations();
   const isEvaluated = Object.values(evals).some(ev => ev.teamId === teamId && (!judgeId || ev.judgeId === judgeId));
   return isEvaluated ? 'evaluated' : 'pending';
+};
+
+export const deleteEvaluationFromSupabase = async (judgeId: string, teamId: string) => {
+  if (!hasSupabaseConfig) return;
+  const { error } = await supabase
+    .from('evaluations')
+    .delete()
+    .eq('judge_id', judgeId)
+    .eq('team_id', teamId);
+  
+  if (error) console.error("Error deleting evaluation:", error);
+  
+  // Clean up local fallback too
+  const evals = getEvaluations();
+  delete evals[`${judgeId}_${teamId}`];
+  localStorage.setItem(EVALUATIONS_KEY, JSON.stringify(evals));
+};
+
+export const resetEditLimitInSupabase = async (judgeId: string, teamId: string) => {
+  if (!hasSupabaseConfig) return;
+  const { error } = await supabase
+    .from('evaluations')
+    .update({ edit_count: 0 })
+    .eq('judge_id', judgeId)
+    .eq('team_id', teamId);
+  
+  if (error) console.error("Error resetting edit limit:", error);
 };

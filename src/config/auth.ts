@@ -1,7 +1,7 @@
-// This file contains authorized judges for the Hackathon Portal.
-// NOTE: For a production environment, consider moving this to a database table or using environment variables.
+// This file contains authorized accounts for the Hackathon Portal.
+// Separated into Admins and Judges for clarity.
 
-export const AUTHORIZED_JUDGES = [
+export const ADMIN_ACCOUNTS = [
   { 
     email: "admin@avantika.edu.in", 
     password: "Admin@Avantika", 
@@ -9,29 +9,34 @@ export const AUTHORIZED_JUDGES = [
     id: "admin-001",
     role: "admin",
     active: true
-  },
+  }
+] as const;
+
+export const JUDGE_ACCOUNTS = [
   { 
     email: "judge1@avantika.edu.in", 
-    password: process.env.NEXT_PUBLIC_JUDGE1_PASSWORD || "Hack@Judge1", 
+    password: "Hack@Judge1", 
     name: "Judge 1", 
-    id: "00000000-0000-0000-0000-000000000001",
+    id: "judge-001",
     role: "judge",
     active: true
   },
   { 
     email: "judge2@avantika.edu.in", 
-    password: process.env.NEXT_PUBLIC_JUDGE2_PASSWORD || "AvantikaXHack", 
+    password: "AvantikaXHack", 
     name: "Judge 2", 
-    id: "00000000-0000-0000-0000-000000000002",
+    id: "judge-002",
     role: "judge",
     active: true
   },
   { 
     email: "judge3@avantika.edu.in", 
-    password: process.env.NEXT_PUBLIC_JUDGE3_PASSWORD || "Avantika@#2026", 
+    password: "Avantika@#2026", 
     name: "Judge 3", 
-    id: "00000000-0000-0000-0000-000000000003",
+    id: "judge-003",
     role: "judge",
     active: true
-  },
+  }
 ] as const;
+
+export const AUTHORIZED_USERS = [...ADMIN_ACCOUNTS, ...JUDGE_ACCOUNTS];

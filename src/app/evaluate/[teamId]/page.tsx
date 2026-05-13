@@ -503,7 +503,7 @@ export default function EvaluatePage({ params }: { params: Promise<{ teamId: str
                 }`}
               >
                 <CheckCircle className="h-4 w-4" /> 
-                {editCount >= MAX_EDITS ? 'Evaluation Locked' : team.status === 'evaluated' ? 'Update scores' : 'Submit final scores'}
+                {editCount >= MAX_EDITS ? 'Evaluation Locked' : team.status === 'evaluated' ? 'Edit Scores' : 'Submit final scores'}
               </Button>
             </div>
           </motion.div>

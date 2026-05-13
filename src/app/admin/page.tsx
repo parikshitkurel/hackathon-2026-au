@@ -12,7 +12,15 @@ import {
   AlertCircle
 } from "lucide-react";
 import { mockTeams } from "@/lib/mock-data";
-import { fetchAllEvaluationsFromSupabase, fetchJudgesFromSupabase } from "@/lib/persistence";
+import { 
+  fetchAllEvaluationsFromSupabase, 
+  fetchJudgesFromSupabase, 
+  deleteEvaluationFromSupabase, 
+  resetEditLimitInSupabase 
+} from "@/lib/persistence";
+import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { RotateCcw, Trash2, ShieldAlert } from "lucide-react";
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({
@@ -21,34 +29,53 @@ export default function AdminDashboard() {
     totalJudges: 0,
     completionRate: 0,
   });
+  const [evaluations, setEvaluations] = useState<any[]>([]);
+  const [judges, setJudges] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  async function loadStats() {
+    setLoading(true);
+    const evalsMap = await fetchAllEvaluationsFromSupabase();
+    const judgesList = await fetchJudgesFromSupabase();
+    
+    setEvaluations(Object.values(evalsMap));
+    setJudges(judgesList);
+
+    const totalTeams = mockTeams.length;
+    const uniqueEvaluatedTeamIds = new Set(
+      Object.values(evalsMap).map(ev => ev.teamId)
+    );
+    
+    const evaluatedTeams = uniqueEvaluatedTeamIds.size;
+    const totalJudgesCount = judgesList.filter(j => j.role === "judge").length;
+    const completionRate = totalTeams > 0 ? Math.round((evaluatedTeams / totalTeams) * 100) : 0;
+
+    setStats({
+      totalTeams,
+      evaluatedTeams,
+      totalJudges: totalJudgesCount,
+      completionRate
+    });
+    setLoading(false);
+  }
 
   useEffect(() => {
-    async function loadStats() {
-      const evaluations = await fetchAllEvaluationsFromSupabase();
-      const judges = await fetchJudgesFromSupabase();
-      
-      const totalTeams = mockTeams.length;
-      
-      // For global stats, we want to know how many unique teams have been evaluated
-      // even if by different judges.
-      const uniqueEvaluatedTeamIds = new Set(
-        Object.values(evaluations).map(ev => ev.teamId)
-      );
-      
-      const evaluatedTeams = uniqueEvaluatedTeamIds.size;
-      const totalJudgesCount = judges.filter(j => j.role === "judge").length;
-      const completionRate = totalTeams > 0 ? Math.round((evaluatedTeams / totalTeams) * 100) : 0;
-
-      setStats({
-        totalTeams,
-        evaluatedTeams,
-        totalJudges: totalJudgesCount,
-        completionRate
-      });
-    }
-    
     loadStats();
   }, []);
+
+  const handleResetScore = async (judgeId: string, teamId: string) => {
+    if (confirm("Are you sure you want to PERMANENTLY RESET this score? The judge will have to re-evaluate.")) {
+      await deleteEvaluationFromSupabase(judgeId, teamId);
+      loadStats();
+    }
+  };
+
+  const handleResetLimit = async (judgeId: string, teamId: string) => {
+    if (confirm("Reset edit limit for this judge? They will get 3 more edits.")) {
+      await resetEditLimitInSupabase(judgeId, teamId);
+      loadStats();
+    }
+  };
 
   const statCards = [
     { name: "Total Teams", value: stats.totalTeams, icon: Trophy, color: "text-blue-600", bg: "bg-blue-50" },
@@ -142,6 +169,88 @@ export default function AdminDashboard() {
               </div>
             </div>
           </div>
+        </Card>
+      </div>
+
+      {/* Management Section */}
+      <div className="mt-12 mb-20">
+        <div className="flex items-center gap-3 mb-6">
+          <ShieldAlert className="h-6 w-6 text-brand-red" />
+          <h2 className="text-2xl font-serif font-bold text-slate-900">Manage Evaluations</h2>
+        </div>
+        
+        <Card className="border-none shadow-sm rounded-3xl overflow-hidden">
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader className="bg-slate-50">
+                <TableRow className="border-none">
+                  <TableHead className="font-bold uppercase tracking-widest text-[10px] py-6 pl-8">Judge</TableHead>
+                  <TableHead className="font-bold uppercase tracking-widest text-[10px] py-6">Team ID</TableHead>
+                  <TableHead className="font-bold uppercase tracking-widest text-[10px] py-6 text-center">Current Score</TableHead>
+                  <TableHead className="font-bold uppercase tracking-widest text-[10px] py-6 text-center">Edits Used</TableHead>
+                  <TableHead className="font-bold uppercase tracking-widest text-[10px] py-6 text-right pr-8">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {evaluations.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="py-12 text-center text-slate-400 font-medium">
+                      No evaluations submitted yet.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  evaluations.map((ev, i) => {
+                    const judge = judges.find(j => j.id === ev.judgeId);
+                    const team = mockTeams.find(t => t.id === ev.teamId);
+                    const totalScore = Object.values(ev.scores).reduce((a: any, b: any) => a + b, 0);
+                    
+                    return (
+                      <TableRow key={i} className="border-slate-50 group hover:bg-slate-50/50 transition-colors">
+                        <TableCell className="py-6 pl-8">
+                          <p className="font-bold text-slate-900">{judge?.name || ev.judgeId}</p>
+                          <p className="text-[10px] text-slate-400 uppercase tracking-tight font-medium">{judge?.email}</p>
+                        </TableCell>
+                        <TableCell className="py-6">
+                          <p className="font-bold text-slate-700">{team?.team_name || ev.teamId}</p>
+                          <p className="text-[10px] text-slate-400 uppercase tracking-tight font-medium">ID: {ev.teamId}</p>
+                        </TableCell>
+                        <TableCell className="py-6 text-center">
+                          <span className="inline-flex items-center justify-center px-3 py-1 rounded-full bg-brand-red/5 text-brand-red font-serif font-bold text-lg">
+                            {totalScore}
+                          </span>
+                        </TableCell>
+                        <TableCell className="py-6 text-center">
+                          <span className={`font-bold ${ev.edit_count >= 3 ? 'text-red-500' : 'text-slate-600'}`}>
+                            {ev.edit_count}/3
+                          </span>
+                        </TableCell>
+                        <TableCell className="py-6 text-right pr-8">
+                          <div className="flex justify-end gap-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => handleResetLimit(ev.judgeId, ev.teamId)}
+                              className="h-9 px-4 rounded-xl border-slate-200 text-slate-600 hover:text-blue-600 hover:bg-blue-50 gap-2 text-[10px] font-bold uppercase tracking-widest"
+                            >
+                              <RotateCcw className="h-3 w-3" /> Reset Limit
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => handleResetScore(ev.judgeId, ev.teamId)}
+                              className="h-9 px-4 rounded-xl text-slate-400 hover:text-brand-red hover:bg-brand-red/5 gap-2 text-[10px] font-bold uppercase tracking-widest"
+                            >
+                              <Trash2 className="h-3 w-3" /> Reset Score
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
         </Card>
       </div>
     </PageWrapper>

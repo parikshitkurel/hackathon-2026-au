@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { HackathonLogo } from "@/components/brand/HackathonLogo";
-import { AUTHORIZED_JUDGES } from "@/config/auth";
+import { AUTHORIZED_USERS } from "@/config/auth";
 import { initializeJudges, fetchJudgesFromSupabase, initializeTeams } from "@/lib/persistence";
 import { mockTeams } from "@/lib/mock-data";
 
@@ -24,7 +24,7 @@ export default function RootPage() {
 
   // Initialize data on mount
   useEffect(() => {
-    initializeJudges(AUTHORIZED_JUDGES);
+    initializeJudges(AUTHORIZED_USERS);
     initializeTeams(mockTeams);
   }, []);
 
