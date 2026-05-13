@@ -65,7 +65,7 @@ export const fetchJudgesFromSupabase = async (): Promise<JudgeAccount[]> => {
   return data as JudgeAccount[];
 };
 
-export const initializeJudges = async (initialJudges: JudgeAccount[]) => {
+export const initializeJudges = async (initialJudges: JudgeAccount[] | readonly JudgeAccount[]) => {
   if (typeof window === "undefined") return;
   
   // Save to Local for redundancy
