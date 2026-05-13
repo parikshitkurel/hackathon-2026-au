@@ -55,8 +55,9 @@ export default function AdminEditEvaluation({ params }: { params: Promise<{ team
 
   const totalScore = Object.values(scores).reduce((a, b) => a + b, 0);
 
-  const handleScoreChange = (id: string, value: number[]) => {
-    setScores(prev => ({ ...prev, [id]: value[0] }));
+  const handleScoreChange = (id: string, value: number | number[]) => {
+    const score = Array.isArray(value) ? value[0] : value;
+    setScores(prev => ({ ...prev, [id]: score }));
   };
 
   const handleSave = async () => {

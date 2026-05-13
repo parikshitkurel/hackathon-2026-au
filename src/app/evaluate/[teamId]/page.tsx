@@ -151,8 +151,9 @@ export default function EvaluatePage({ params }: { params: Promise<{ teamId: str
 
   const totalScore = Object.values(scores).reduce((a, b) => a + b, 0);
 
-  const handleScoreChange = (category: string, value: number[]) => {
-    setScores(prev => ({ ...prev, [category]: value[0] }));
+  const handleScoreChange = (category: string, value: number | number[]) => {
+    const score = Array.isArray(value) ? value[0] : value;
+    setScores(prev => ({ ...prev, [category]: score }));
   };
 
   const handleManualScoreChange = (category: string, value: string, max: number) => {
