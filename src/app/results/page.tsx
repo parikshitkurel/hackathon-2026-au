@@ -117,6 +117,10 @@ export default function ResultsPage() {
 
   return (
     <PageWrapper className="container mx-auto px-4 py-12 sm:px-8 max-w-7xl">
+      <Link href="/dashboard" className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-muted-foreground hover:text-brand-red transition-colors mb-8 group">
+        <ChevronLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" /> Back to Dashboard
+      </Link>
+      
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16">
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-red/10 text-brand-red text-[10px] font-bold uppercase tracking-widest mb-4">

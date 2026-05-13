@@ -24,10 +24,16 @@ export default function DashboardPage() {
       if (!hasSupabaseConfig) {
         console.log("No Supabase config found, falling back to mock data.");
         const evaluatedIds = getEvaluatedTeamIds();
-        const updatedMockTeams = mockTeams.map(t => ({
-          ...t,
-          status: evaluatedIds.includes(t.id) ? 'evaluated' : 'pending'
-        })) as Team[];
+        const updatedMockTeams = mockTeams.map(t => {
+          // Check for canonical ID or slugified name in evaluations
+          const isEvaluated = evaluatedIds.includes(t.id) || 
+                             evaluatedIds.includes(t.team_name.replace(/\s+/g, '-')) ||
+                             evaluatedIds.includes(t.team_name);
+          return {
+            ...t,
+            status: isEvaluated ? 'evaluated' : 'pending'
+          };
+        }) as Team[];
         setTeams(updatedMockTeams);
         setLoading(false);
         return;
@@ -44,10 +50,15 @@ export default function DashboardPage() {
         if (!data || data.length === 0) {
           console.log("Database is empty, showing mock data with local persistence.");
           const evaluatedIds = getEvaluatedTeamIds();
-          const updatedMockTeams = mockTeams.map(t => ({
-            ...t,
-            status: evaluatedIds.includes(t.id) ? 'evaluated' : 'pending'
-          })) as Team[];
+          const updatedMockTeams = mockTeams.map(t => {
+            const isEvaluated = evaluatedIds.includes(t.id) || 
+                               evaluatedIds.includes(t.team_name.replace(/\s+/g, '-')) ||
+                               evaluatedIds.includes(t.team_name);
+            return {
+              ...t,
+              status: isEvaluated ? 'evaluated' : 'pending'
+            };
+          }) as Team[];
           setTeams(updatedMockTeams);
           return;
         }
@@ -61,10 +72,15 @@ export default function DashboardPage() {
         console.error("Error fetching teams:", err);
         // Fallback with local persistence
         const evaluatedIds = getEvaluatedTeamIds();
-        const updatedMockTeams = mockTeams.map(t => ({
-          ...t,
-          status: evaluatedIds.includes(t.id) ? 'evaluated' : 'pending'
-        })) as Team[];
+        const updatedMockTeams = mockTeams.map(t => {
+          const isEvaluated = evaluatedIds.includes(t.id) || 
+                             evaluatedIds.includes(t.team_name.replace(/\s+/g, '-')) ||
+                             evaluatedIds.includes(t.team_name);
+          return {
+            ...t,
+            status: isEvaluated ? 'evaluated' : 'pending'
+          };
+        }) as Team[];
         setTeams(updatedMockTeams);
       } finally {
         setLoading(false);

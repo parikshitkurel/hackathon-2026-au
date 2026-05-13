@@ -185,7 +185,7 @@ export default function EvaluatePage({ params }: { params: Promise<{ teamId: str
         
         try {
           const evaluationData = {
-            teamId: resolvedParams.teamId,
+            teamId: team.id,
             scores,
             feedback,
             submittedAt: new Date().toISOString()

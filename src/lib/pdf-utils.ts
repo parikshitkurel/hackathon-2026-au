@@ -43,6 +43,11 @@ export const generatePDF = async (element: HTMLElement, filename: string) => {
                 el.style.color = "#000000";
                 el.style.backgroundColor = "transparent";
               }
+              // Force word spacing for better PDF readability
+              if (el.tagName === "P" || el.tagName === "DIV") {
+                el.style.wordSpacing = "normal";
+                el.style.letterSpacing = "normal";
+              }
             } catch (e) {
               // Ignore
             }

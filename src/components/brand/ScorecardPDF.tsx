@@ -65,13 +65,13 @@ export const ScorecardPDF = React.forwardRef<HTMLDivElement, ScorecardPDFProps>(
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "40px", marginBottom: "50px" }}>
           <div>
             <label style={{ fontSize: "10px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.2em", color: COLORS.textMuted, display: "block", marginBottom: "8px" }}>Participating Team</label>
-            <h3 style={{ fontSize: "32px", fontFamily: "serif", fontWeight: "bold", color: "#000000", margin: 0 }}>{team.team_name}</h3>
+            <h3 style={{ fontSize: "32px", fontFamily: "serif", fontWeight: "bold", color: "#000000", margin: 0, lineHeight: "1.2", paddingBottom: "4px" }}>{team.team_name}</h3>
             {team.member_names && (
-              <p style={{ fontSize: "11px", fontWeight: "bold", color: COLORS.grey, textTransform: "uppercase", letterSpacing: "0.1em", marginTop: "6px" }}>
+              <p style={{ fontSize: "11px", fontWeight: "bold", color: COLORS.grey, textTransform: "uppercase", letterSpacing: "0.1em", marginTop: "4px", lineHeight: "1.4" }}>
                 {team.member_names.join(" • ")}
               </p>
             )}
-            <p style={{ fontSize: "14px", fontWeight: "bold", color: COLORS.orange, marginTop: "8px" }}>{team.category}</p>
+            <p style={{ fontSize: "14px", fontWeight: "bold", color: COLORS.orange, marginTop: "10px", letterSpacing: "0.05em" }}>{team.category}</p>
           </div>
           <div style={{ backgroundColor: COLORS.lightGrey, padding: "24px", borderRadius: "20px", border: `1px solid ${COLORS.border}`, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center" }}>
             <label style={{ fontSize: "10px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.2em", color: COLORS.textMuted, marginBottom: "4px" }}>Aggregate Score</label>
@@ -118,7 +118,15 @@ export const ScorecardPDF = React.forwardRef<HTMLDivElement, ScorecardPDFProps>(
         {/* Judge Feedback */}
         <div style={{ padding: "30px", borderRadius: "24px", border: `1px solid ${COLORS.red}30`, backgroundColor: COLORS.red + "05", marginBottom: "50px" }}>
           <label style={{ fontSize: "10px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.2em", display: "block", marginBottom: "12px", color: COLORS.red }}>Judge's Remarks</label>
-          <p style={{ fontSize: "14px", color: "#334155", lineHeight: "1.7", margin: 0 }}>
+          <p style={{ 
+            fontSize: "14px", 
+            color: "#334155", 
+            lineHeight: "1.6", 
+            margin: 0, 
+            wordSpacing: "0.1em", 
+            letterSpacing: "normal", 
+            whiteSpace: "pre-wrap" 
+          }}>
             {score.feedback || "Excellent demonstration of creative coding principles. The technical execution aligns well with the artistic vision presented."}
           </p>
         </div>
