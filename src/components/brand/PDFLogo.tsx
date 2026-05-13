@@ -6,9 +6,9 @@ import React from "react";
  * A specialized version of the HackathonLogo that uses standard HEX colors 
  * to ensure compatibility with PDF generation tools (html2canvas).
  */
-export function PDFLogo({ className = "" }: { className?: string }) {
+export function PDFLogo({ className = "", style }: { className?: string; style?: React.CSSProperties }) {
   return (
-    <div className={`flex items-center gap-6 ${className}`} style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+    <div className={`flex items-center gap-6 ${className}`} style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', ...style }}>
       {/* Avantika Logo */}
       <img src="/avantika_logo.svg" alt="Avantika University" className="h-12 w-auto" style={{ height: '3rem', width: 'auto' }} />
       
