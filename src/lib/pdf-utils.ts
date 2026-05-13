@@ -9,16 +9,23 @@ export const generatePDF = async (element: HTMLElement, filename: string) => {
       logging: false,
       backgroundColor: "#ffffff",
       onclone: (clonedDoc) => {
-        // Find ALL style tags and replace modern color functions globally
+        // Remove ALL link tags to prevent html2canvas from trying to fetch/parse external CSS with modern functions
+        const linkTags = clonedDoc.getElementsByTagName("link");
+        for (let i = linkTags.length - 1; i >= 0; i--) {
+          if (linkTags[i].rel === "stylesheet") {
+            linkTags[i].parentNode?.removeChild(linkTags[i]);
+          }
+        }
+
+        // Find ALL style tags and aggressively sanitize them
         const styleTags = clonedDoc.getElementsByTagName("style");
         for (let i = 0; i < styleTags.length; i++) {
           try {
-            // Replace oklch, lab, color-mix, and display-p3 colors with a safe fallback
+            // Completely remove any CSS lines containing modern color functions
+            // This prevents the parser from even seeing the unsupported syntax
             styleTags[i].innerHTML = styleTags[i].innerHTML
-              .replace(/oklch\([^)]+\)/g, "#C10016")
-              .replace(/lab\([^)]+\)/g, "#C10016")
-              .replace(/color-mix\([^)]+\)/g, "#C10016")
-              .replace(/color\(display-p3[^)]+\)/g, "#C10016");
+              .replace(/[a-z-]+\s*:\s*[^;]*?(oklch|lab|color-mix|display-p3)[^;]*?;/gi, "/* fallback */ color: #C10016; ")
+              .replace(/@media\s+[^\{]+\{[^\}]+(oklch|lab|color-mix)[^\}]+\}/gi, "/* removed media query */");
           } catch (e) {
             console.warn("Could not sanitize style tag:", e);
           }
@@ -30,13 +37,11 @@ export const generatePDF = async (element: HTMLElement, filename: string) => {
           const el = allElements[i] as HTMLElement;
           if (el.style && el.style.cssText) {
             try {
-              const css = el.style.cssText;
+              const css = el.style.cssText.toLowerCase();
               if (css.includes("oklch") || css.includes("lab") || css.includes("color-mix") || css.includes("display-p3")) {
-                el.style.cssText = css
-                  .replace(/oklch\([^)]+\)/g, "#C10016")
-                  .replace(/lab\([^)]+\)/g, "#C10016")
-                  .replace(/color-mix\([^)]+\)/g, "#C10016")
-                  .replace(/color\(display-p3[^)]+\)/g, "#C10016");
+                // Clear problematic inline styles
+                el.style.color = "#000000";
+                el.style.backgroundColor = "transparent";
               }
             } catch (e) {
               // Ignore

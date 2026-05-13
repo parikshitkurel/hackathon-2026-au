@@ -42,8 +42,13 @@ export default function DashboardPage() {
         if (error) throw error;
         
         if (!data || data.length === 0) {
-          console.log("Database is empty, showing mock data.");
-          setTeams(mockTeams);
+          console.log("Database is empty, showing mock data with local persistence.");
+          const evaluatedIds = getEvaluatedTeamIds();
+          const updatedMockTeams = mockTeams.map(t => ({
+            ...t,
+            status: evaluatedIds.includes(t.id) ? 'evaluated' : 'pending'
+          })) as Team[];
+          setTeams(updatedMockTeams);
           return;
         }
 
@@ -54,7 +59,13 @@ export default function DashboardPage() {
         setTeams(mappedTeams);
       } catch (err) {
         console.error("Error fetching teams:", err);
-        setTeams(mockTeams); // fallback on error
+        // Fallback with local persistence
+        const evaluatedIds = getEvaluatedTeamIds();
+        const updatedMockTeams = mockTeams.map(t => ({
+          ...t,
+          status: evaluatedIds.includes(t.id) ? 'evaluated' : 'pending'
+        })) as Team[];
+        setTeams(updatedMockTeams);
       } finally {
         setLoading(false);
       }
