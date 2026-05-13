@@ -45,37 +45,45 @@ export default function ResultsPage() {
         if (hasSupabaseConfig) {
           const { data } = await supabase.from('scores').select('*');
           if (data) scoresData = data;
-        } else {
-          const localEvals = getEvaluations();
-          const localScores: Score[] = Object.values(localEvals).map(ev => ({
-            id: `local-${ev.teamId}`,
-            team_id: ev.teamId,
-            judge_id: "local-judge",
-            creativity_score: ev.scores.creativity_score || 0,
-            technical_score: ev.scores.technical_score || 0,
-            design_score: ev.scores.design_score || 0,
-            theme_score: ev.scores.theme_score || 0,
-            engagement_score: ev.scores.engagement_score || 0,
-            total_score: Object.values(ev.scores).reduce((a, b) => a + b, 0),
-            feedback: ev.feedback,
-            submitted_at: ev.submittedAt,
-            edit_count: 0
-          }));
-          scoresData = [...mockScores, ...localScores];
         }
 
-        // Aggregate scores per team
-        const teamAverages = mockTeams.map(team => {
-          const teamScores = scoresData.filter(s => s.team_id === team.id);
-          const total = teamScores.reduce((acc, s) => {
-            return acc + s.creativity_score + s.technical_score + s.design_score + s.theme_score + s.engagement_score;
-          }, 0);
-          
-          const average = teamScores.length > 0 ? Math.round(total / teamScores.length) : 0;
-          
-          return {
-            ...team,
-            finalScore: average
+        // Always get local scores and merge them, prioritizing local over mock
+        const localEvals = getEvaluations();
+        const localScores: Score[] = Object.values(localEvals).map(ev => ({
+          id: `local-${ev.teamId}`,
+          team_id: ev.teamId,
+          judge_id: "local-judge",
+          creativity_score: ev.scores.creativity_score || 0,
+          technical_score: ev.scores.technical_score || 0,
+          design_score: ev.scores.design_score || 0,
+          theme_score: ev.scores.theme_score || 0,
+          engagement_score: ev.scores.engagement_score || 0,
+          total_score: Object.values(ev.scores).reduce((a, b) => (a || 0) + (b || 0), 0),
+          feedback: ev.feedback,
+          submitted_at: ev.submittedAt,
+          edit_count: 0
+        }));
+    const fetchLatestScores = async () => {
+      const { data: dbEvaluations, error } = await supabase
+        .from('evaluations')
+        .select('*');
+
+      const localEvals = getEvaluations();
+      
+      // Combine both, preferring DB if available
+      const combinedEvals: Record<string, any> = { ...localEvals };
+      if (dbEvaluations) {
+        dbEvaluations.forEach(ev => {
+          combinedEvals[ev.team_id] = {
+            teamId: ev.team_id,
+            scores: {
+              creativity_score: ev.creativity_score,
+              technical_score: ev.technical_score,
+              design_score: ev.design_score,
+              theme_score: ev.theme_score,
+              engagement_score: ev.engagement_score,
+            },
+            feedback: ev.feedback
           };
         });
 
@@ -216,57 +224,66 @@ export default function ResultsPage() {
 
       {/* HIDDEN REPORT TEMPLATE FOR PDF EXPORT */}
       <div className="fixed left-[-9999px] top-[-9999px]">
-        <div ref={reportRef} className="w-[1000px] p-20 bg-white text-slate-900 font-sans" style={{ backgroundColor: '#ffffff' }}>
-          <div className="flex justify-between items-center border-b-4 pb-10 mb-12" style={{ borderColor: '#C10016' }}>
+        <div 
+          ref={reportRef} 
+          style={{
+            width: "1000px",
+            padding: "80px",
+            backgroundColor: "#ffffff",
+            color: "#1A1A1A",
+            fontFamily: "sans-serif"
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "4px solid #C10016", paddingBottom: "40px", marginBottom: "50px" }}>
             <div>
-              <PDFLogo className="scale-150 origin-left" />
-              <h2 className="text-5xl font-serif font-bold mt-12 uppercase tracking-tighter" style={{ color: '#C10016' }}>Final Evaluation Summary</h2>
-              <p className="text-sm font-bold uppercase tracking-[0.4em] mt-2" style={{ color: '#7E7E82' }}>Official Results Publication • 2026</p>
+              <PDFLogo style={{ transform: "scale(1.5)", transformOrigin: "left" }} />
+              <h2 style={{ fontSize: "48px", fontFamily: "serif", fontWeight: "bold", marginTop: "48px", textTransform: "uppercase", letterSpacing: "-0.02em", color: "#C10016", margin: "48px 0 0 0" }}>Final Evaluation Summary</h2>
+              <p style={{ fontSize: "14px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.4em", marginTop: "8px", color: "#7E7E82" }}>Official Results Publication • 2026</p>
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-8 mb-16">
-            <div className="p-8 rounded-3xl text-center" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
-              <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: '#94a3b8' }}>Total Participants</p>
-              <div className="text-5xl font-serif font-bold">{results.length}</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "32px", marginBottom: "64px" }}>
+            <div style={{ padding: "32px", borderRadius: "24px", textAlign: "center", backgroundColor: "#0f172a", color: "#ffffff" }}>
+              <p style={{ fontSize: "10px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "8px", color: "#94a3b8" }}>Total Participants</p>
+              <div style={{ fontSize: "48px", fontFamily: "serif", fontWeight: "bold" }}>{results.length}</div>
             </div>
-            <div className="p-8 rounded-3xl text-center text-white" style={{ backgroundColor: '#C10016' }}>
-              <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: '#FFB81C' }}>Top Average Score</p>
-              <div className="text-5xl font-serif font-bold">{results[0]?.finalScore || 0}</div>
+            <div style={{ padding: "32px", borderRadius: "24px", textAlign: "center", backgroundColor: "#C10016", color: "#ffffff" }}>
+              <p style={{ fontSize: "10px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "8px", color: "#FFB81C" }}>Top Average Score</p>
+              <div style={{ fontSize: "48px", fontFamily: "serif", fontWeight: "bold" }}>{results[0]?.finalScore || 0}</div>
             </div>
-            <div className="bg-slate-100 p-8 rounded-3xl text-center" style={{ backgroundColor: '#f1f5f9' }}>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2" style={{ color: '#94a3b8' }}>Winner</p>
-              <div className="text-2xl font-serif font-bold truncate">{results[0]?.team_name || "N/A"}</div>
+            <div style={{ padding: "32px", borderRadius: "24px", textAlign: "center", backgroundColor: "#f1f5f9", color: "#1e293b" }}>
+              <p style={{ fontSize: "10px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "8px", color: "#94a3b8" }}>Winner</p>
+              <div style={{ fontSize: "24px", fontFamily: "serif", fontWeight: "bold" }}>{results[0]?.team_name || "N/A"}</div>
             </div>
           </div>
 
-          <table className="w-full text-left border-collapse">
+          <table style={{ width: "100%", textAlign: "left", borderCollapse: "collapse" }}>
             <thead>
-              <tr className="border-b-2" style={{ backgroundColor: '#f8fafc', borderColor: '#e2e8f0' }}>
-                <th className="py-6 px-4 font-bold uppercase tracking-widest text-[10px]">Rank</th>
-                <th className="py-6 px-4 font-bold uppercase tracking-widest text-[10px]">Team Name</th>
-                <th className="py-6 px-4 font-bold uppercase tracking-widest text-[10px]">Project</th>
-                <th className="py-6 px-4 font-bold uppercase tracking-widest text-[10px] text-right">Final Score</th>
+              <tr style={{ backgroundColor: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
+                <th style={{ padding: "24px 16px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.1em", fontSize: "10px" }}>Rank</th>
+                <th style={{ padding: "24px 16px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.1em", fontSize: "10px" }}>Team Name</th>
+                <th style={{ padding: "24px 16px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.1em", fontSize: "10px" }}>Project</th>
+                <th style={{ padding: "24px 16px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.1em", fontSize: "10px", textAlign: "right" }}>Final Score</th>
               </tr>
             </thead>
             <tbody>
               {results.map((team, index) => (
-                <tr key={team.id} className="border-b" style={{ borderColor: '#f1f5f9' }}>
-                  <td className="py-6 px-4 font-serif font-bold text-xl">#{team.rank}</td>
-                  <td className="py-6 px-4 font-bold">{team.team_name}</td>
-                  <td className="py-6 px-4 text-slate-500">{team.project_name}</td>
-                  <td className="py-6 px-4 text-right font-serif font-bold text-2xl" style={{ color: '#C10016' }}>{team.finalScore}</td>
+                <tr key={team.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                  <td style={{ padding: "24px 16px", fontFamily: "serif", fontWeight: "bold", fontSize: "20px" }}>#{team.rank}</td>
+                  <td style={{ padding: "24px 16px", fontWeight: "bold" }}>{team.team_name}</td>
+                  <td style={{ padding: "24px 16px", color: "#64748b" }}>{team.project_name}</td>
+                  <td style={{ padding: "24px 16px", textAlign: "right", fontFamily: "serif", fontWeight: "bold", fontSize: "24px", color: "#C10016" }}>{team.finalScore}</td>
                 </tr>
               ))}
             </tbody>
           </table>
 
-          <div className="mt-20 pt-10 border-t flex justify-between items-center" style={{ borderColor: '#e2e8f0' }}>
+          <div style={{ marginTop: "80px", paddingTop: "40px", borderTop: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-slate-400">Published via Avantika Hackathon Systems</p>
+              <p style={{ fontSize: "10px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.4em", color: "#94a3b8" }}>Published via Avantika Hackathon Systems</p>
             </div>
-            <div className="text-right">
-              <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-slate-400">Official Hackathon System</p>
+            <div style={{ textAlign: "right" }}>
+              <p style={{ fontSize: "10px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.4em", color: "#94a3b8" }}>Official Hackathon System</p>
             </div>
           </div>
         </div>

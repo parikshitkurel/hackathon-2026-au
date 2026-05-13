@@ -1,197 +1,138 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { Download, Trophy, Search, CircleDashed } from "lucide-react";
+import { useEffect, useState } from "react";
 import { PageWrapper } from "@/components/layout/PageWrapper";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { mockTeams, mockScores, Team, Score } from "@/lib/mock-data";
-import { supabase, hasSupabaseConfig } from "@/lib/supabase";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { 
+  Users, 
+  Trophy, 
+  ClipboardCheck, 
+  Clock,
+  TrendingUp,
+  AlertCircle
+} from "lucide-react";
+import { mockTeams } from "@/lib/mock-data";
+import { getEvaluations, getJudges } from "@/lib/persistence";
 
-export default function AdminDashboardPage() {
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [scores, setScores] = useState<Score[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
+export default function AdminDashboard() {
+  const [stats, setStats] = useState({
+    totalTeams: 0,
+    evaluatedTeams: 0,
+    totalJudges: 0,
+    completionRate: 0,
+  });
 
   useEffect(() => {
-    async function fetchData() {
-      if (!hasSupabaseConfig) {
-        setTeams(mockTeams);
-        setScores(mockScores);
-        setLoading(false);
-        return;
-      }
+    const evaluations = getEvaluations();
+    const judges = getJudges();
+    
+    const totalTeams = mockTeams.length;
+    const evaluatedTeams = Object.keys(evaluations).length;
+    const totalJudges = judges.filter(j => j.role === "judge").length;
+    const completionRate = totalTeams > 0 ? Math.round((evaluatedTeams / totalTeams) * 100) : 0;
 
-      try {
-        const [teamsResponse, scoresResponse] = await Promise.all([
-          supabase.from('teams').select('*'),
-          supabase.from('scores').select('*')
-        ]);
-
-        if (teamsResponse.error) throw teamsResponse.error;
-        if (scoresResponse.error) throw scoresResponse.error;
-
-        setTeams(teamsResponse.data as Team[]);
-        setScores(scoresResponse.data as Score[]);
-      } catch (err) {
-        console.error("Error fetching admin data:", err);
-        setTeams(mockTeams);
-        setScores(mockScores);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchData();
+    setStats({
+      totalTeams,
+      evaluatedTeams,
+      totalJudges,
+      completionRate
+    });
   }, []);
 
-  // Aggregate scores for the leaderboard
-  const leaderboard = teams.map(team => {
-    const teamScores = scores.filter(s => s.team_id === team.id);
-    const avgScore = teamScores.length > 0 
-      ? Math.round(teamScores.reduce((acc, curr) => acc + curr.total_score, 0) / teamScores.length)
-      : 0;
-      
-    return {
-      ...team,
-      avgScore,
-      evaluations: teamScores.length
-    };
-  })
-  .filter(team => team.team_name.toLowerCase().includes(searchQuery.toLowerCase()) || team.project_name.toLowerCase().includes(searchQuery.toLowerCase()))
-  .sort((a, b) => b.avgScore - a.avgScore);
-
-  if (loading) {
-    return (
-      <PageWrapper className="container mx-auto px-4 py-8 sm:px-8 flex justify-center items-center min-h-[60vh]">
-        <div className="flex flex-col items-center gap-4">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          <p className="text-muted-foreground">Loading admin data...</p>
-        </div>
-      </PageWrapper>
-    );
-  }
+  const statCards = [
+    { name: "Total Teams", value: stats.totalTeams, icon: Trophy, color: "text-blue-600", bg: "bg-blue-50" },
+    { name: "Evaluated", value: stats.evaluatedTeams, icon: ClipboardCheck, color: "text-emerald-600", bg: "bg-emerald-50" },
+    { name: "Active Judges", value: stats.totalJudges, icon: Users, color: "text-brand-orange", bg: "bg-orange-50" },
+    { name: "Completion", value: `${stats.completionRate}%`, icon: TrendingUp, color: "text-brand-red", bg: "bg-red-50" },
+  ];
 
   return (
-    <PageWrapper className="container mx-auto px-4 py-8 sm:px-8">
-      <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Admin Overview</h1>
-          <p className="text-muted-foreground mt-1">Global leaderboard and judging analytics.</p>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <Button variant="outline" className="gap-2 bg-background">
-            <Download className="h-4 w-4" /> Export CSV
-          </Button>
-        </div>
+    <PageWrapper>
+      <div className="mb-12">
+        <h1 className="text-4xl font-serif font-bold text-slate-900">Admin Dashboard</h1>
+        <p className="text-slate-500 mt-2 font-medium">Real-time overview of hackathon judging progress.</p>
       </div>
 
-      {!hasSupabaseConfig && (
-        <div className="mb-8 p-4 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 flex items-center gap-3 text-sm">
-          <CircleDashed className="h-5 w-5 shrink-0" />
-          <p>Running in offline mode. Add Supabase credentials to `.env.local` to view live judging analytics.</p>
-        </div>
-      )}
-
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-10">
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Top Score</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{leaderboard[0]?.avgScore || 0}</div>
-            <p className="text-xs text-muted-foreground mt-1">{leaderboard[0]?.project_name || 'N/A'}</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Evaluations</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{scores.length}</div>
-            <p className="text-xs text-muted-foreground mt-1">Across all judges</p>
-          </CardContent>
-        </Card>
-        {/* Add more stats cards as needed */}
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-12">
+        {statCards.map((stat) => (
+          <Card key={stat.name} className="border-none shadow-sm rounded-2xl overflow-hidden">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">{stat.name}</p>
+                  <p className="text-3xl font-serif font-bold text-slate-900">{stat.value}</p>
+                </div>
+                <div className={`p-3 rounded-xl ${stat.bg} ${stat.color}`}>
+                  <stat.icon className="h-6 w-6" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      <Card className="border-border/60 shadow-sm bg-card/50 backdrop-blur-sm overflow-hidden">
-        <CardHeader className="flex flex-row items-center justify-between border-b border-border/40 pb-4 bg-muted/10">
-          <div>
-            <CardTitle className="text-xl flex items-center gap-2">
-              <Trophy className="h-5 w-5 text-amber-500" /> Leaderboard
-            </CardTitle>
-            <CardDescription className="mt-1">Real-time ranking of all teams</CardDescription>
+      <div className="grid gap-8 lg:grid-cols-2">
+        <Card className="border-none shadow-sm rounded-3xl p-8">
+          <CardHeader className="px-0 pt-0">
+            <CardTitle className="text-xl font-serif font-bold">Judging Status</CardTitle>
+          </CardHeader>
+          <div className="space-y-6 mt-4">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-500 font-medium">Progress Bar</span>
+              <span className="text-brand-red font-bold">{stats.completionRate}% Complete</span>
+            </div>
+            <div className="h-4 w-full bg-slate-100 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-brand-red transition-all duration-1000 ease-out"
+                style={{ width: `${stats.completionRate}%` }}
+              />
+            </div>
+            <div className="flex items-center gap-6 pt-4">
+              <div className="flex items-center gap-2">
+                <div className="h-3 w-3 rounded-full bg-brand-red" />
+                <span className="text-xs font-bold text-slate-600">Evaluated</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="h-3 w-3 rounded-full bg-slate-200" />
+                <span className="text-xs font-bold text-slate-600">Remaining</span>
+              </div>
+            </div>
           </div>
-          <div className="relative w-full sm:w-64 mt-4 sm:mt-0">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input 
-              type="search" 
-              placeholder="Search teams..." 
-              className="pl-9 bg-background/50 h-9"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+        </Card>
+
+        <Card className="border-none shadow-sm rounded-3xl p-8 bg-slate-900 text-white">
+          <CardHeader className="px-0 pt-0 flex flex-row items-center justify-between">
+            <CardTitle className="text-xl font-serif font-bold">System Alerts</CardTitle>
+            <AlertCircle className="h-5 w-5 text-brand-orange" />
+          </CardHeader>
+          <div className="mt-6 space-y-4">
+            {stats.completionRate < 100 ? (
+              <div className="p-4 rounded-xl bg-white/5 border border-white/10 flex gap-4">
+                <Clock className="h-5 w-5 text-brand-orange shrink-0" />
+                <div>
+                  <p className="text-sm font-bold">Judging in Progress</p>
+                  <p className="text-xs text-slate-400 mt-1">There are still {stats.totalTeams - stats.evaluatedTeams} teams awaiting evaluation.</p>
+                </div>
+              </div>
+            ) : (
+              <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex gap-4">
+                <ClipboardCheck className="h-5 w-5 text-emerald-400 shrink-0" />
+                <div>
+                  <p className="text-sm font-bold text-emerald-400">Judging Complete</p>
+                  <p className="text-xs text-emerald-400/70 mt-1">All teams have been successfully evaluated.</p>
+                </div>
+              </div>
+            )}
+            <div className="p-4 rounded-xl bg-white/5 border border-white/10 flex gap-4">
+              <Users className="h-5 w-5 text-blue-400 shrink-0" />
+              <div>
+                <p className="text-sm font-bold">Judge Activity</p>
+                <p className="text-xs text-slate-400 mt-1">All {stats.totalJudges} judge accounts are currently active.</p>
+              </div>
+            </div>
           </div>
-        </CardHeader>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/30 hover:bg-muted/30 border-b-border/40">
-                <TableHead className="w-16 text-center font-semibold">Rank</TableHead>
-                <TableHead className="font-semibold">Project & Team</TableHead>
-                <TableHead className="font-semibold">Category</TableHead>
-                <TableHead className="text-center font-semibold">Evaluations</TableHead>
-                <TableHead className="text-right font-semibold">Avg Score</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {leaderboard.map((team, index) => (
-                <TableRow key={team.id} className="group hover:bg-muted/20 transition-colors">
-                  <TableCell className="text-center font-medium">
-                    {index === 0 ? (
-                      <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-amber-500/20 text-amber-600 font-bold">1</span>
-                    ) : index === 1 ? (
-                      <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-slate-400/20 text-slate-600 font-bold">2</span>
-                    ) : index === 2 ? (
-                      <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-orange-700/20 text-orange-800 font-bold">3</span>
-                    ) : (
-                      <span className="text-muted-foreground">{index + 1}</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="font-medium">{team.project_name}</div>
-                    <div className="text-sm text-muted-foreground">{team.team_name}</div>
-                  </TableCell>
-                  <TableCell>
-                    <span className="inline-flex items-center rounded-full border border-border/50 bg-background/50 px-2 py-0.5 text-xs">
-                      {team.category}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-center text-muted-foreground">
-                    {team.evaluations}
-                  </TableCell>
-                  <TableCell className="text-right font-bold text-lg">
-                    {team.avgScore > 0 ? team.avgScore : '-'}
-                  </TableCell>
-                </TableRow>
-              ))}
-              {leaderboard.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
-                    No results found.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </Card>
+        </Card>
+      </div>
     </PageWrapper>
   );
 }

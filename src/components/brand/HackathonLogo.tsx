@@ -2,12 +2,42 @@
 
 import React from "react";
 
-export function HackathonLogo({ className = "", size = "md" }: { className?: string; size?: "sm" | "md" | "lg" }) {
+export function HackathonLogo({ 
+  className = "", 
+  size = "md", 
+  variant = "horizontal" 
+}: { 
+  className?: string; 
+  size?: "sm" | "md" | "lg";
+  variant?: "horizontal" | "vertical";
+}) {
   const sizeClasses = {
     sm: "scale-75 origin-center",
     md: "scale-100",
     lg: "scale-125 origin-center",
   };
+
+  if (variant === "vertical") {
+    return (
+      <div className={`flex flex-col items-start gap-5 ${className}`}>
+        <img src="/avantika_logo.svg" alt="Avantika University" className="h-10 w-auto" />
+        <div className="h-0.5 w-full max-w-[140px] bg-gradient-to-r from-brand-red via-brand-orange to-brand-yellow opacity-60 rounded-full" />
+        <div className="flex flex-col">
+          <div className="flex items-center gap-2">
+            <span className="font-serif text-xl font-bold tracking-tight text-foreground whitespace-nowrap">
+              Creative<span className="text-brand-red">Coding</span>
+            </span>
+            <div className="flex h-5 items-center px-1.5 rounded bg-brand-red/10 border border-brand-red/20">
+              <span className="text-[8px] font-bold uppercase tracking-widest text-brand-red">2026</span>
+            </div>
+          </div>
+          <span className="text-[9px] font-bold uppercase tracking-[0.3em] text-brand-grey leading-none mt-2">
+            HACKATHON
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`flex items-center gap-6 ${sizeClasses[size]} ${className}`}>
@@ -20,7 +50,7 @@ export function HackathonLogo({ className = "", size = "md" }: { className?: str
       {/* Hackathon Text Content */}
       <div className="flex flex-col">
         <div className="flex items-center gap-2">
-          <span className="font-serif text-2xl font-bold tracking-tight text-foreground">
+          <span className="font-serif text-2xl font-bold tracking-tight text-foreground whitespace-nowrap">
             Creative<span className="text-brand-red">Coding</span>
           </span>
           <div className="flex h-6 items-center px-2 rounded bg-brand-red/10 border border-brand-red/20">

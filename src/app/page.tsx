@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { HackathonLogo } from "@/components/brand/HackathonLogo";
 import { AUTHORIZED_JUDGES } from "@/config/auth";
+import { initializeJudges, fetchJudgesFromSupabase } from "@/lib/persistence";
 
 export default function RootPage() {
   const [showSplash, setShowSplash] = useState(true);
@@ -19,6 +20,11 @@ export default function RootPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+
+  // Initialize judges on mount
+  useEffect(() => {
+    initializeJudges(AUTHORIZED_JUDGES);
+  }, []);
 
   // Splash screen timer
   useEffect(() => {
@@ -33,14 +39,26 @@ export default function RootPage() {
     setIsLoading(true);
     setError("");
 
-    setTimeout(() => {
-      const judge = AUTHORIZED_JUDGES.find(
+    setTimeout(async () => {
+      const judges = await fetchJudgesFromSupabase();
+      const judge = judges.find(
         (j) => j.email === email && j.password === password
       );
 
       if (judge) {
+        if (!judge.active) {
+          setError("This account has been deactivated by the administrator.");
+          setIsLoading(false);
+          return;
+        }
+
         localStorage.setItem("current_judge", JSON.stringify(judge));
-        router.push("/dashboard");
+        
+        if (judge.role === "admin") {
+          router.push("/admin");
+        } else {
+          router.push("/dashboard");
+        }
       } else {
         setError("Invalid email or password. Please try again.");
         setIsLoading(false);
