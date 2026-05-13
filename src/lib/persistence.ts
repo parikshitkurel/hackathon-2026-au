@@ -1,4 +1,4 @@
-import { Team, Score } from "./mock-data";
+import { Team, Score, mockTeams } from "./mock-data";
 import { supabase } from "./supabase";
 
 const EVALUATIONS_KEY = "hackathon_evaluations";
@@ -21,11 +21,12 @@ export interface JudgeAccount {
 }
 
 // Evaluation Persistence (Supabase + Local Fallback)
-export const saveEvaluation = async (evaluation: LocalEvaluation) => {
+export const saveEvaluation = async (evaluation: LocalEvaluation, judgeId: string) => {
   // 1. Sync to Supabase
   const { error } = await supabase
     .from('evaluations')
     .upsert({
+      judge_id: judgeId,
       team_id: evaluation.teamId,
       creativity_score: evaluation.scores.creativity_score,
       technical_score: evaluation.scores.technical_score,
@@ -35,17 +36,21 @@ export const saveEvaluation = async (evaluation: LocalEvaluation) => {
       total_score: Object.values(evaluation.scores).reduce((a, b) => a + b, 0),
       feedback: evaluation.feedback,
       updated_at: new Date().toISOString()
-    }, { onConflict: 'team_id' });
+    }, { onConflict: 'judge_id, team_id' });
 
   if (error) console.error("Supabase sync error:", error);
 
-  // 2. Local Fallback
+  // 2. Local Fallback (keyed by judgeId + teamId for multi-judge support if needed)
   const existing = getEvaluations();
-  const updated = { ...existing, [evaluation.teamId]: evaluation };
+  const updated = { ...existing, [`${judgeId}_${evaluation.teamId}`]: { ...evaluation, judgeId } };
   localStorage.setItem(EVALUATIONS_KEY, JSON.stringify(updated));
+  
+  // 3. Mark team as evaluated in local teams cache if we have one
+  const teamStatusKey = `status_${evaluation.teamId}`;
+  localStorage.setItem(teamStatusKey, 'evaluated');
 };
 
-export const getEvaluations = (): Record<string, LocalEvaluation> => {
+export const getEvaluations = (): Record<string, LocalEvaluation & { judgeId?: string }> => {
   if (typeof window === "undefined") return {};
   const data = localStorage.getItem(EVALUATIONS_KEY);
   return data ? JSON.parse(data) : {};
@@ -55,7 +60,8 @@ export const getEvaluations = (): Record<string, LocalEvaluation> => {
 export const fetchJudgesFromSupabase = async (): Promise<JudgeAccount[]> => {
   const { data, error } = await supabase
     .from('judges')
-    .select('*');
+    .select('*')
+    .order('name', { ascending: true });
   
   if (error) {
     console.error("Error fetching judges from Supabase:", error);
@@ -63,6 +69,20 @@ export const fetchJudgesFromSupabase = async (): Promise<JudgeAccount[]> => {
   }
   
   return data as JudgeAccount[];
+};
+
+export const fetchTeamsFromSupabase = async (): Promise<Team[]> => {
+  const { data, error } = await supabase
+    .from('teams')
+    .select('*')
+    .order('team_name', { ascending: true });
+  
+  if (error) {
+    console.error("Error fetching teams from Supabase:", error);
+    return mockTeams; // Fallback to mock
+  }
+  
+  return data as Team[];
 };
 
 export const initializeJudges = async (initialJudges: JudgeAccount[] | readonly JudgeAccount[]) => {
@@ -75,8 +95,8 @@ export const initializeJudges = async (initialJudges: JudgeAccount[] | readonly 
   }
 
   // Attempt to sync to Supabase if not already there
-  const { data } = await supabase.from('judges').select('count');
-  if (!data || data.length === 0) {
+  const { data, error: countError } = await supabase.from('judges').select('id', { count: 'exact', head: true });
+  if (!countError && (data === null || data.length === 0)) {
     await supabase.from('judges').insert([...initialJudges]);
   }
 };
@@ -107,11 +127,15 @@ export const updateJudgeInSupabase = async (judge: JudgeAccount) => {
   localStorage.setItem(JUDGES_KEY, JSON.stringify(updated));
 };
 
-export const getEvaluatedTeamIds = (): string[] => {
-  return Object.keys(getEvaluations());
+export const getEvaluatedTeamIds = (judgeId?: string): string[] => {
+  const evals = getEvaluations();
+  return Object.values(evals)
+    .filter(ev => !judgeId || ev.judgeId === judgeId)
+    .map(ev => ev.teamId);
 };
 
-export const getTeamStatus = (teamId: string): 'pending' | 'evaluated' => {
-  const evaluations = getEvaluations();
-  return evaluations[teamId] ? 'evaluated' : 'pending';
+export const getTeamStatus = (teamId: string, judgeId?: string): 'pending' | 'evaluated' => {
+  const evals = getEvaluations();
+  const isEvaluated = Object.values(evals).some(ev => ev.teamId === teamId && (!judgeId || ev.judgeId === judgeId));
+  return isEvaluated ? 'evaluated' : 'pending';
 };

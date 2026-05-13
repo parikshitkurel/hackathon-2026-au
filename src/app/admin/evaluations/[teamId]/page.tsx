@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChevronLeft, Save, AlertCircle, ShieldCheck } from "lucide-react";
 import { mockTeams, Team } from "@/lib/mock-data";
-import { getEvaluations, saveEvaluation } from "@/lib/persistence";
+import { getEvaluations, saveEvaluation, fetchTeamsFromSupabase } from "@/lib/persistence";
 import Link from "next/link";
 
 const SCORING_CATEGORIES = [
@@ -39,18 +39,25 @@ export default function AdminEditEvaluation({ params }: { params: Promise<{ team
   const resolvedParams = React.use(params);
 
   useEffect(() => {
-    const teamId = resolvedParams.teamId;
-    const foundTeam = mockTeams.find(t => t.id === teamId);
-    if (foundTeam) {
-      setTeam(foundTeam);
-      const allEvals = getEvaluations();
-      const existing = allEvals[teamId];
-      if (existing) {
-        setScores(existing.scores);
-        setFeedback(existing.feedback);
+    async function loadData() {
+      const teamId = resolvedParams.teamId;
+      const teamsData = await fetchTeamsFromSupabase();
+      const foundTeam = teamsData.find(t => t.id === teamId);
+      
+      if (foundTeam) {
+        setTeam(foundTeam);
+        const allEvals = getEvaluations();
+        // For admin, we might want to show the first evaluation found or allow selecting judge
+        // For now, find ANY evaluation for this team
+        const existing = Object.values(allEvals).find(ev => ev.teamId === teamId);
+        if (existing) {
+          setScores(existing.scores);
+          setFeedback(existing.feedback);
+        }
       }
+      setLoading(false);
     }
-    setLoading(false);
+    loadData();
   }, [resolvedParams.teamId]);
 
   const totalScore = Object.values(scores).reduce((a, b) => a + b, 0);
@@ -64,12 +71,15 @@ export default function AdminEditEvaluation({ params }: { params: Promise<{ team
     if (!team) return;
     setIsSaving(true);
     
+    const judgeData = localStorage.getItem("current_judge");
+    const adminId = judgeData ? JSON.parse(judgeData).id : "admin";
+    
     await saveEvaluation({
       teamId: team.id,
       scores,
       feedback,
       submittedAt: new Date().toISOString()
-    });
+    }, adminId);
 
     setIsSaving(false);
     router.push("/admin/evaluations");

@@ -184,6 +184,9 @@ export default function EvaluatePage({ params }: { params: Promise<{ teamId: str
         localStorage.setItem(key, (currentEdits + 1).toString());
         
         try {
+          const judgeData = localStorage.getItem("current_judge");
+          const judgeId = judgeData ? JSON.parse(judgeData).id : "guest";
+
           const evaluationData = {
             teamId: team.id,
             scores,
@@ -191,7 +194,7 @@ export default function EvaluatePage({ params }: { params: Promise<{ teamId: str
             submittedAt: new Date().toISOString()
           };
 
-          await saveEvaluation(evaluationData);
+          await saveEvaluation(evaluationData, judgeId);
           
           setIsSuccess(true);
           setShowConfirmModal(false);

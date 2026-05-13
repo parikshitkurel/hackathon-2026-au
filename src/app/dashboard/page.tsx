@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { PageWrapper } from "@/components/layout/PageWrapper";
 import { mockTeams, Team } from "@/lib/mock-data";
 import { supabase, hasSupabaseConfig } from "@/lib/supabase";
-import { getEvaluatedTeamIds } from "@/lib/persistence";
+import { getEvaluatedTeamIds, fetchTeamsFromSupabase } from "@/lib/persistence";
 
 export default function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -21,67 +21,26 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function fetchTeams() {
-      if (!hasSupabaseConfig) {
-        console.log("No Supabase config found, falling back to mock data.");
-        const evaluatedIds = getEvaluatedTeamIds();
-        const updatedMockTeams = mockTeams.map(t => {
-          // Check for canonical ID or slugified name in evaluations
+      const judgeData = localStorage.getItem("current_judge");
+      const judgeId = judgeData ? JSON.parse(judgeData).id : null;
+
+      try {
+        const data = await fetchTeamsFromSupabase();
+        const evaluatedIds = getEvaluatedTeamIds(judgeId);
+
+        const mappedTeams = data.map(t => {
           const isEvaluated = evaluatedIds.includes(t.id) || 
                              evaluatedIds.includes(t.team_name.replace(/\s+/g, '-')) ||
                              evaluatedIds.includes(t.team_name);
           return {
             ...t,
-            status: isEvaluated ? 'evaluated' : 'pending'
+            status: (isEvaluated ? 'evaluated' : (t.status || 'pending')) as 'pending' | 'evaluated'
           };
-        }) as Team[];
-        setTeams(updatedMockTeams);
-        setLoading(false);
-        return;
-      }
+        });
 
-      try {
-        const { data, error } = await supabase
-          .from('teams')
-          .select('*')
-          .order('submitted_at', { ascending: false });
-
-        if (error) throw error;
-        
-        if (!data || data.length === 0) {
-          console.log("Database is empty, showing mock data with local persistence.");
-          const evaluatedIds = getEvaluatedTeamIds();
-          const updatedMockTeams = mockTeams.map(t => {
-            const isEvaluated = evaluatedIds.includes(t.id) || 
-                               evaluatedIds.includes(t.team_name.replace(/\s+/g, '-')) ||
-                               evaluatedIds.includes(t.team_name);
-            return {
-              ...t,
-              status: isEvaluated ? 'evaluated' : 'pending'
-            };
-          }) as Team[];
-          setTeams(updatedMockTeams);
-          return;
-        }
-
-        const mappedTeams = (data as Team[]).map(t => ({
-          ...t,
-          status: (t.status || 'pending') as 'pending' | 'evaluated'
-        }));
         setTeams(mappedTeams);
       } catch (err) {
         console.error("Error fetching teams:", err);
-        // Fallback with local persistence
-        const evaluatedIds = getEvaluatedTeamIds();
-        const updatedMockTeams = mockTeams.map(t => {
-          const isEvaluated = evaluatedIds.includes(t.id) || 
-                             evaluatedIds.includes(t.team_name.replace(/\s+/g, '-')) ||
-                             evaluatedIds.includes(t.team_name);
-          return {
-            ...t,
-            status: isEvaluated ? 'evaluated' : 'pending'
-          };
-        }) as Team[];
-        setTeams(updatedMockTeams);
       } finally {
         setLoading(false);
       }
@@ -104,10 +63,31 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <PageWrapper className="container mx-auto px-4 py-8 sm:px-8 flex justify-center items-center min-h-[60vh]">
-        <div className="flex flex-col items-center gap-4">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          <p className="text-muted-foreground">Loading dashboard...</p>
+      <PageWrapper className="container mx-auto px-4 py-8 sm:px-8">
+        <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between pb-8 border-b border-border/5">
+          <div className="space-y-2">
+            <div className="h-10 w-48 bg-muted animate-pulse rounded-lg" />
+            <div className="h-4 w-64 bg-muted animate-pulse rounded-md" />
+          </div>
+          <div className="flex gap-4">
+            <div className="h-12 w-64 bg-muted animate-pulse rounded-xl" />
+            <div className="h-12 w-12 bg-muted animate-pulse rounded-xl" />
+          </div>
+        </div>
+
+        <div className="grid gap-6 mb-12 sm:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-32 bg-muted/50 animate-pulse rounded-3xl" />
+          ))}
+        </div>
+
+        <div className="space-y-6">
+          <div className="h-8 w-64 bg-muted animate-pulse rounded-lg" />
+          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="h-[400px] bg-muted/30 animate-pulse rounded-3xl" />
+            ))}
+          </div>
         </div>
       </PageWrapper>
     );

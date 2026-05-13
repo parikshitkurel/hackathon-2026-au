@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { mockTeams, Team } from "@/lib/mock-data";
-import { getEvaluations, LocalEvaluation } from "@/lib/persistence";
+import { getEvaluations, LocalEvaluation, fetchTeamsFromSupabase } from "@/lib/persistence";
 import Link from "next/link";
 
 export default function AdminEvaluations() {
@@ -25,8 +25,12 @@ export default function AdminEvaluations() {
   const [filterStatus, setFilterStatus] = useState<"all" | "pending" | "evaluated">("all");
 
   useEffect(() => {
-    setTeams(mockTeams);
-    setEvaluations(getEvaluations());
+    async function loadData() {
+      const teamsData = await fetchTeamsFromSupabase();
+      setTeams(teamsData);
+      setEvaluations(getEvaluations());
+    }
+    loadData();
   }, []);
 
   const filteredTeams = teams.filter(team => {

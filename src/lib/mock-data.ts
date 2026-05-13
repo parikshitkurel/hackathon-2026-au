@@ -2,14 +2,14 @@ export interface Team {
   id: string;
   team_name: string;
   project_name: string;
+  category: string;
   members: number;
   member_names: string[];
-  category: string;
   description: string;
   github_url: string;
   demo_url: string;
-  submitted_at: string;
   status: 'pending' | 'evaluated';
+  submitted_at: string;
 }
 
 export interface Score {
@@ -23,6 +23,7 @@ export interface Score {
   engagement_score: number;
   total_score: number;
   feedback: string;
+  edit_count: number;
   submitted_at: string;
 }
 
@@ -340,6 +341,7 @@ export const mockScores: Score[] = [
     engagement_score: 19,
     total_score: 88,
     feedback: "Incredible visual aesthetic. The audio syncing was slightly off during heavy bass drops, but overall a stunning project.",
+    edit_count: 0,
     submitted_at: "2026-05-11T16:00:00Z"
   }
 ];
