@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { PageWrapper } from "@/components/layout/PageWrapper";
 import { mockTeams, Team } from "@/lib/mock-data";
 import { supabase, hasSupabaseConfig } from "@/lib/supabase";
+import { getEvaluatedTeamIds } from "@/lib/persistence";
 
 export default function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -22,7 +23,12 @@ export default function DashboardPage() {
     async function fetchTeams() {
       if (!hasSupabaseConfig) {
         console.log("No Supabase config found, falling back to mock data.");
-        setTeams(mockTeams);
+        const evaluatedIds = getEvaluatedTeamIds();
+        const updatedMockTeams = mockTeams.map(t => ({
+          ...t,
+          status: evaluatedIds.includes(t.id) ? 'evaluated' : 'pending'
+        })) as Team[];
+        setTeams(updatedMockTeams);
         setLoading(false);
         return;
       }
@@ -225,9 +231,16 @@ export default function DashboardPage() {
                     {team.description}
                   </p>
                   <div className="mt-6 pt-6 border-t border-border/5 flex items-center gap-4 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                      <Users className="h-3.5 w-3.5 text-brand-grey" />
-                      <span>{team.members} members</span>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-3.5 w-3.5 text-brand-grey" />
+                        <span>{team.members} members</span>
+                      </div>
+                      {team.member_names && (
+                        <div className="text-[10px] text-muted-foreground/60 italic truncate max-w-[200px]">
+                          {team.member_names.join(", ")}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </CardContent>

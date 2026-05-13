@@ -70,18 +70,18 @@ export default function RootPage() {
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.5, duration: 1 }}
-              className="flex flex-col items-center space-y-12"
+              className="flex flex-col items-center space-y-20"
             >
-              <div className="scale-150 mb-4">
+              <div className="mb-16 scale-150 origin-center">
                 <HackathonLogo size="lg" />
               </div>
               
-              <div className="text-center space-y-6">
+              <div className="text-center space-y-8">
                 <motion.div
                   initial={{ scaleX: 0 }}
                   animate={{ scaleX: 1 }}
                   transition={{ delay: 1.2, duration: 1 }}
-                  className="h-px w-24 bg-brand-red mx-auto"
+                  className="h-px w-24 bg-brand-red mx-auto mb-8"
                 />
                 
                 <div className="space-y-2">
@@ -102,23 +102,6 @@ export default function RootPage() {
                     Welcome <span className="text-brand-red italic">Judges</span>
                   </motion.h1>
                 </div>
-
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 2.2 }}
-                  className="pt-8 flex flex-col items-center"
-                >
-                  <p className="text-[10px] font-bold uppercase tracking-[0.5em] text-muted-foreground/60 mb-2">Designed & Developed by</p>
-                  <a 
-                    href="https://www.linkedin.com/in/parikshit-kurel/" 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    className="text-2xl font-serif font-bold text-slate-800 tracking-tight hover:text-brand-red transition-colors cursor-pointer"
-                  >
-                    Parikshit Kurel
-                  </a>
-                </motion.div>
               </div>
 
             </motion.div>
@@ -211,18 +194,7 @@ export default function RootPage() {
               <CardFooter className="flex flex-col space-y-4 p-8 pt-0">
                 <div className="h-px w-full bg-border/5" />
                 <div className="flex items-center justify-between w-full opacity-60">
-                  <div className="text-[8px] font-black uppercase tracking-[0.3em]">CC 2026</div>
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-brand-grey flex items-center gap-2">
-                    <span>Crafted by</span>
-                    <a 
-                      href="https://www.linkedin.com/in/parikshit-kurel/" 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="text-brand-red hover:underline transition-colors cursor-pointer"
-                    >
-                      Parikshit Kurel
-                    </a>
-                  </div>
+                  <div className="text-[8px] font-black uppercase tracking-[0.3em]">Creative Coding Hackathon 2026</div>
                 </div>
               </CardFooter>
             </Card>

@@ -46,6 +46,11 @@ export const ScorecardPDF = React.forwardRef<HTMLDivElement, ScorecardPDFProps>(
           <div>
             <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 block mb-2">Participating Team</label>
             <h3 className="text-3xl font-serif font-bold text-slate-800">{team.team_name}</h3>
+            {team.member_names && (
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">
+                {team.member_names.join(" • ")}
+              </p>
+            )}
             <p className="text-sm font-semibold mt-1" style={{ color: "#FF6900" }}>{team.category}</p>
           </div>
           <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 flex flex-col justify-center items-center">
@@ -102,16 +107,7 @@ export const ScorecardPDF = React.forwardRef<HTMLDivElement, ScorecardPDFProps>(
             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Head of Judging Panel</p>
           </div>
           <div className="text-right">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Developer Signature</p>
-            <a 
-              href="https://www.linkedin.com/in/parikshit-kurel/" 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              className="text-sm font-serif font-bold italic hover:underline cursor-pointer" 
-              style={{ color: "#C10016" }}
-            >
-              Crafted by Parikshit Kurel
-            </a>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Official Hackathon System</p>
           </div>
         </div>
 

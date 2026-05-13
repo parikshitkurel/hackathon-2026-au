@@ -13,28 +13,33 @@ export const generatePDF = async (element: HTMLElement, filename: string) => {
         const styleTags = clonedDoc.getElementsByTagName("style");
         for (let i = 0; i < styleTags.length; i++) {
           try {
+            // Replace oklch, lab, color-mix, and display-p3 colors with a safe fallback
             styleTags[i].innerHTML = styleTags[i].innerHTML
+              .replace(/oklch\([^)]+\)/g, "#C10016")
               .replace(/lab\([^)]+\)/g, "#C10016")
-              .replace(/oklch\([^)]+\)/g, "#C10016");
+              .replace(/color-mix\([^)]+\)/g, "#C10016")
+              .replace(/color\(display-p3[^)]+\)/g, "#C10016");
           } catch (e) {
             console.warn("Could not sanitize style tag:", e);
           }
         }
         
-        // Sanitize inline styles
-        const elements = clonedDoc.getElementsByTagName("*");
-        for (let i = 0; i < elements.length; i++) {
-          const el = elements[i] as HTMLElement;
-          if (el.style) {
+        // Sanitize inline styles for ALL elements in the clone
+        const allElements = clonedDoc.getElementsByTagName("*");
+        for (let i = 0; i < allElements.length; i++) {
+          const el = allElements[i] as HTMLElement;
+          if (el.style && el.style.cssText) {
             try {
-              const cssText = el.style.cssText;
-              if (cssText && (cssText.includes("lab(") || cssText.includes("oklch("))) {
-                el.style.cssText = cssText
+              const css = el.style.cssText;
+              if (css.includes("oklch") || css.includes("lab") || css.includes("color-mix") || css.includes("display-p3")) {
+                el.style.cssText = css
+                  .replace(/oklch\([^)]+\)/g, "#C10016")
                   .replace(/lab\([^)]+\)/g, "#C10016")
-                  .replace(/oklch\([^)]+\)/g, "#C10016");
+                  .replace(/color-mix\([^)]+\)/g, "#C10016")
+                  .replace(/color\(display-p3[^)]+\)/g, "#C10016");
               }
             } catch (e) {
-              // Ignore elements where style.cssText might be read-only or error
+              // Ignore
             }
           }
         }

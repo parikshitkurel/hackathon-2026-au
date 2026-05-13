@@ -17,6 +17,7 @@ import { supabase, hasSupabaseConfig } from "@/lib/supabase";
 import { ScorecardPDF } from "@/components/brand/ScorecardPDF";
 import { generatePDF } from "@/lib/pdf-utils";
 import { useRef } from "react";
+import { saveEvaluation, getEvaluations } from "@/lib/persistence";
 
 const SCORING_CATEGORIES = [
   { id: "creativity_score", label: "Creativity & Originality", description: "Innovation, unique approach, and creative vision.", max: 20 },
@@ -109,6 +110,14 @@ export default function EvaluatePage({ params }: { params: Promise<{ teamId: str
           const key = `edit_count_${mockTeam.id}`;
           const savedEdits = parseInt(localStorage.getItem(key) || "0");
           setEditCount(savedEdits);
+
+          // Load local evaluation if it exists
+          const localEvaluations = getEvaluations();
+          const localEval = localEvaluations[mockTeam.id];
+          if (localEval) {
+            setScores(localEval.scores);
+            setFeedback(localEval.feedback);
+          }
         } else {
           console.error("Critical: Team not found in database or mock data for ID:", teamId);
         }
@@ -173,6 +182,14 @@ export default function EvaluatePage({ params }: { params: Promise<{ teamId: str
         const currentEdits = parseInt(localStorage.getItem(key) || "0");
         localStorage.setItem(key, (currentEdits + 1).toString());
         
+        // Save evaluation data locally
+        saveEvaluation({
+          teamId: team.id,
+          scores,
+          feedback,
+          submittedAt: new Date().toISOString()
+        });
+
         setTimeout(() => {
           setIsSubmitting(false);
           setIsSuccess(true);
@@ -333,6 +350,25 @@ export default function EvaluatePage({ params }: { params: Promise<{ teamId: str
                 </a>
               )}
             </div>
+
+            {team.member_names && team.member_names.length > 0 && (
+              <div className="mt-6 p-6 rounded-2xl bg-brand-red/[0.03] border border-brand-red/10 max-w-sm animate-in fade-in slide-in-from-left-4 duration-500">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="h-1.5 w-4 bg-brand-red rounded-full" />
+                  <h4 className="text-[10px] font-bold uppercase tracking-[0.3em] text-brand-red">Team Roster</h4>
+                </div>
+                <ul className="grid gap-3">
+                  {team.member_names.map((name, idx) => (
+                    <li key={idx} className="flex items-center gap-3 text-sm font-bold text-foreground group">
+                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-red/10 text-[10px] text-brand-red">
+                        0{idx + 1}
+                      </div>
+                      <span className="tracking-tight">{name}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             <div className="mt-10 p-8 rounded-2xl bg-muted/20 border border-border/5">
               <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground mb-4">Project Narrative</h3>

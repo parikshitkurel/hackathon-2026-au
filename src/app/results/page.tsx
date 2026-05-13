@@ -24,6 +24,7 @@ import { mockTeams, Team, mockScores, Score } from "@/lib/mock-data";
 import { supabase, hasSupabaseConfig } from "@/lib/supabase";
 import { PDFLogo } from "@/components/brand/PDFLogo";
 import { generatePDF } from "@/lib/pdf-utils";
+import { getEvaluations } from "@/lib/persistence";
 
 interface TeamResult extends Team {
   finalScore: number;
@@ -45,7 +46,22 @@ export default function ResultsPage() {
           const { data } = await supabase.from('scores').select('*');
           if (data) scoresData = data;
         } else {
-          scoresData = mockScores;
+          const localEvals = getEvaluations();
+          const localScores: Score[] = Object.values(localEvals).map(ev => ({
+            id: `local-${ev.teamId}`,
+            team_id: ev.teamId,
+            judge_id: "local-judge",
+            creativity_score: ev.scores.creativity_score || 0,
+            technical_score: ev.scores.technical_score || 0,
+            design_score: ev.scores.design_score || 0,
+            theme_score: ev.scores.theme_score || 0,
+            engagement_score: ev.scores.engagement_score || 0,
+            total_score: Object.values(ev.scores).reduce((a, b) => a + b, 0),
+            feedback: ev.feedback,
+            submitted_at: ev.submittedAt,
+            edit_count: 0
+          }));
+          scoresData = [...mockScores, ...localScores];
         }
 
         // Aggregate scores per team
@@ -250,16 +266,7 @@ export default function ResultsPage() {
               <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-slate-400">Published via Avantika Hackathon Systems</p>
             </div>
             <div className="text-right">
-              <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: '#94a3b8' }}>Technical Lead</p>
-              <a 
-                href="https://www.linkedin.com/in/parikshit-kurel/" 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="text-sm font-serif font-bold italic hover:underline cursor-pointer" 
-                style={{ color: '#C10016' }}
-              >
-                Parikshit Kurel
-              </a>
+              <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-slate-400">Official Hackathon System</p>
             </div>
           </div>
         </div>

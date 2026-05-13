@@ -4,9 +4,9 @@ import React from "react";
 
 export function HackathonLogo({ className = "", size = "md" }: { className?: string; size?: "sm" | "md" | "lg" }) {
   const sizeClasses = {
-    sm: "scale-75 origin-left",
+    sm: "scale-75 origin-center",
     md: "scale-100",
-    lg: "scale-125 origin-left",
+    lg: "scale-125 origin-center",
   };
 
   return (
@@ -28,7 +28,7 @@ export function HackathonLogo({ className = "", size = "md" }: { className?: str
           </div>
         </div>
         
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-4">
           <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-brand-grey leading-none">
             H A C K A T H O N
           </span>
