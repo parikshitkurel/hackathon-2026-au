@@ -77,7 +77,7 @@ export default function EvaluatePage({ params }: { params: Promise<{ teamId: str
         if (judgeData) {
           const { id: judgeId } = JSON.parse(judgeData);
           const { data: existingScore } = await supabase
-            .from('scores')
+            .from('evaluations')
             .select('*')
             .eq('team_id', teamId)
             .eq('judge_id', judgeId)
@@ -219,7 +219,7 @@ export default function EvaluatePage({ params }: { params: Promise<{ teamId: str
 
       // Upsert score and increment edit count
       const { error } = await supabase
-        .from('scores')
+        .from('evaluations')
         .upsert({
           judge_id: judge_id,
           team_id: team.id,

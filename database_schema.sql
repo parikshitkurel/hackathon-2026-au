@@ -74,8 +74,21 @@ CREATE TABLE IF NOT EXISTS evaluations (
   feedback TEXT,
   edit_count INTEGER DEFAULT 0,
   submitted_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (judge_id, team_id)
 );
+
+-- Enable Realtime for the evaluations table
+-- 1. Create the publication if it doesn't exist
+-- 2. Add the table to the publication
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+        CREATE PUBLICATION supabase_realtime;
+    END IF;
+END $$;
+
+ALTER PUBLICATION supabase_realtime ADD TABLE evaluations;
 
 -- Add sample admin user
 -- NOTE: In production, passwords should be hashed. 

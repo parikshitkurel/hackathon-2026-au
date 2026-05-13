@@ -10,7 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { HackathonLogo } from "@/components/brand/HackathonLogo";
 import { AUTHORIZED_JUDGES } from "@/config/auth";
-import { initializeJudges, fetchJudgesFromSupabase } from "@/lib/persistence";
+import { initializeJudges, fetchJudgesFromSupabase, initializeTeams } from "@/lib/persistence";
+import { mockTeams } from "@/lib/mock-data";
 
 export default function RootPage() {
   const [showSplash, setShowSplash] = useState(true);
@@ -21,9 +22,10 @@ export default function RootPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  // Initialize judges on mount
+  // Initialize data on mount
   useEffect(() => {
     initializeJudges(AUTHORIZED_JUDGES);
+    initializeTeams(mockTeams);
   }, []);
 
   // Splash screen timer

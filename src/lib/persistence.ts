@@ -1,5 +1,5 @@
 import { Team, Score, mockTeams } from "./mock-data";
-import { supabase } from "./supabase";
+import { supabase, hasSupabaseConfig } from "./supabase";
 
 const EVALUATIONS_KEY = "hackathon_evaluations";
 const JUDGES_KEY = "hackathon_judges";
@@ -22,7 +22,22 @@ export interface JudgeAccount {
 
 // Evaluation Persistence (Supabase + Local Fallback)
 export const saveEvaluation = async (evaluation: LocalEvaluation, judgeId: string) => {
-  // 1. Sync to Supabase
+  // 1. Fetch current edit count if updating
+  let currentEditCount = 0;
+  if (hasSupabaseConfig) {
+    const { data: existingEval } = await supabase
+      .from('evaluations')
+      .select('edit_count')
+      .eq('judge_id', judgeId)
+      .eq('team_id', evaluation.teamId)
+      .single();
+    
+    if (existingEval) {
+      currentEditCount = existingEval.edit_count || 0;
+    }
+  }
+
+  // 2. Sync to Supabase
   const { error } = await supabase
     .from('evaluations')
     .upsert({
@@ -35,6 +50,7 @@ export const saveEvaluation = async (evaluation: LocalEvaluation, judgeId: strin
       engagement_score: evaluation.scores.engagement_score,
       total_score: Object.values(evaluation.scores).reduce((a, b) => a + b, 0),
       feedback: evaluation.feedback,
+      edit_count: currentEditCount + 1,
       updated_at: new Date().toISOString()
     }, { onConflict: 'judge_id, team_id' });
 
@@ -99,6 +115,60 @@ export const initializeJudges = async (initialJudges: JudgeAccount[] | readonly 
   if (!countError && (data === null || data.length === 0)) {
     await supabase.from('judges').insert([...initialJudges]);
   }
+};
+
+export const initializeTeams = async (initialTeams: Team[]) => {
+  if (typeof window === "undefined" || !hasSupabaseConfig) return;
+  
+  // Attempt to sync to Supabase if not already there
+  const { count, error: countError } = await supabase.from('teams').select('*', { count: 'exact', head: true });
+  
+  if (!countError && (count === 0)) {
+    console.log("Initializing teams in Supabase...");
+    await supabase.from('teams').insert(initialTeams.map(t => ({
+      id: t.id,
+      team_name: t.team_name,
+      project_name: t.project_name,
+      category: t.category,
+      members: t.members,
+      member_names: t.member_names,
+      description: t.description,
+      github_url: t.github_url,
+      demo_url: t.demo_url,
+      status: t.status,
+      submitted_at: t.submitted_at
+    })));
+  }
+};
+
+export const fetchAllEvaluationsFromSupabase = async (): Promise<Record<string, LocalEvaluation & { judgeId?: string }>> => {
+  if (!hasSupabaseConfig) return getEvaluations();
+
+  const { data, error } = await supabase.from('evaluations').select('*');
+  
+  if (error) {
+    console.error("Error fetching all evaluations:", error);
+    return getEvaluations();
+  }
+
+  const evaluations: Record<string, LocalEvaluation & { judgeId?: string }> = {};
+  data.forEach(ev => {
+    evaluations[`${ev.judge_id}_${ev.team_id}`] = {
+      teamId: ev.team_id,
+      judgeId: ev.judge_id,
+      scores: {
+        creativity_score: ev.creativity_score,
+        technical_score: ev.technical_score,
+        design_score: ev.design_score,
+        theme_score: ev.theme_score,
+        engagement_score: ev.engagement_score,
+      },
+      feedback: ev.feedback,
+      submittedAt: ev.submitted_at
+    };
+  });
+
+  return evaluations;
 };
 
 export const getJudges = (): JudgeAccount[] => {

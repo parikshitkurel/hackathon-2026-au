@@ -12,7 +12,7 @@ import {
   AlertCircle
 } from "lucide-react";
 import { mockTeams } from "@/lib/mock-data";
-import { getEvaluations, getJudges } from "@/lib/persistence";
+import { fetchAllEvaluationsFromSupabase, fetchJudgesFromSupabase } from "@/lib/persistence";
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({
@@ -23,20 +23,31 @@ export default function AdminDashboard() {
   });
 
   useEffect(() => {
-    const evaluations = getEvaluations();
-    const judges = getJudges();
-    
-    const totalTeams = mockTeams.length;
-    const evaluatedTeams = Object.keys(evaluations).length;
-    const totalJudges = judges.filter(j => j.role === "judge").length;
-    const completionRate = totalTeams > 0 ? Math.round((evaluatedTeams / totalTeams) * 100) : 0;
+    async function loadStats() {
+      const evaluations = await fetchAllEvaluationsFromSupabase();
+      const judges = await fetchJudgesFromSupabase();
+      
+      const totalTeams = mockTeams.length;
+      
+      // For global stats, we want to know how many unique teams have been evaluated
+      // even if by different judges.
+      const uniqueEvaluatedTeamIds = new Set(
+        Object.values(evaluations).map(ev => ev.teamId)
+      );
+      
+      const evaluatedTeams = uniqueEvaluatedTeamIds.size;
+      const totalJudgesCount = judges.filter(j => j.role === "judge").length;
+      const completionRate = totalTeams > 0 ? Math.round((evaluatedTeams / totalTeams) * 100) : 0;
 
-    setStats({
-      totalTeams,
-      evaluatedTeams,
-      totalJudges,
-      completionRate
-    });
+      setStats({
+        totalTeams,
+        evaluatedTeams,
+        totalJudges: totalJudgesCount,
+        completionRate
+      });
+    }
+    
+    loadStats();
   }, []);
 
   const statCards = [
