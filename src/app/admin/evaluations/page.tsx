@@ -151,7 +151,7 @@ export default function AdminEvaluations() {
                       </TableCell>
                       <TableCell className="py-6 text-center">
                         <span className="inline-flex items-center justify-center px-4 py-1.5 rounded-xl bg-brand-red/5 text-brand-red font-serif font-bold text-xl">
-                          {totalScore}
+                          {totalScore as number}
                         </span>
                       </TableCell>
                       <TableCell className="py-6 text-center">
