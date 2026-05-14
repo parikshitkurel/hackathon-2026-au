@@ -9,6 +9,7 @@ export interface LocalEvaluation {
   scores: Record<string, number>;
   feedback: string;
   submittedAt: string;
+  edit_count?: number;
 }
 
 export interface JudgeAccount {
