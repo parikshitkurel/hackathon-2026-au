@@ -26,15 +26,25 @@ export default function DashboardPage() {
 
       try {
         const data = await fetchTeamsFromSupabase();
-        const evaluatedIds = getEvaluatedTeamIds(judgeId);
+        
+        // Fetch evaluations for this judge from Supabase
+        let evaluatedIds: string[] = [];
+        if (judgeId) {
+          const { data: judgeEvals } = await supabase
+            .from('evaluations')
+            .select('team_id')
+            .eq('judge_id', judgeId);
+          
+          if (judgeEvals) {
+            evaluatedIds = judgeEvals.map(e => e.team_id);
+          }
+        }
 
         const mappedTeams = data.map(t => {
-          const isEvaluated = evaluatedIds.includes(t.id) || 
-                             evaluatedIds.includes(t.team_name.replace(/\s+/g, '-')) ||
-                             evaluatedIds.includes(t.team_name);
+          const isEvaluated = evaluatedIds.includes(t.id);
           return {
             ...t,
-            status: (isEvaluated ? 'evaluated' : (t.status || 'pending')) as 'pending' | 'evaluated'
+            status: (isEvaluated ? 'evaluated' : 'pending') as 'pending' | 'evaluated'
           };
         });
 
@@ -52,8 +62,10 @@ export default function DashboardPage() {
   const uniqueThemes = ["All Themes", ...Array.from(new Set(teams.map(t => t.category)))];
 
   const filteredTeams = teams.filter(team => {
-    const matchesSearch = team.team_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         team.project_name.toLowerCase().includes(searchQuery.toLowerCase());
+    const searchStr = `${team.team_name} ${team.project_name} ${team.category} ${team.description} ${team.member_names?.join(" ")}`.toLowerCase();
+    const query = searchQuery.toLowerCase();
+    
+    const matchesSearch = searchStr.includes(query);
     const matchesTheme = selectedTheme === "All Themes" || team.category === selectedTheme;
     return matchesSearch && matchesTheme;
   });
